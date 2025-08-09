@@ -1,0 +1,11 @@
+{
+  "watch": ["src"],
+  "ext": "ts,tsx",
+  "ignore": ["node_modules", "dist"],
+  "exec": "tsx src/index.ts",
+  "env": {
+    "AUTO_START": "true",
+    "PORT": "4000"
+  }
+}
+
