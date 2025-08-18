@@ -23,7 +23,11 @@ export const env = {
   nodeEnv: (process.env.NODE_ENV ?? 'development') as 'development' | 'test' | 'production',
   port: requireNumber('PORT', 4000),
   mongoUri: requireString('MONGO_URI', 'mongodb://localhost:27017/scarlet'),
-  jwtSecret: requireString('JWT_SECRET', 'change-me-in-prod')
+  dbName: process.env.DB_NAME, // Optional: override database name
+  jwtSecret: requireString('JWT_SECRET', 'change-me-in-prod'),
+  // Additional Atlas-specific configurations
+  apiBaseUrl: process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 4000}/api`,
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
 };
 
 export const isProduction = env.nodeEnv === 'production';
