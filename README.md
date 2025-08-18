@@ -2,6 +2,10 @@
 
 A robust Node.js/Express backend API for the Scarlet e-commerce platform, optimized for MongoDB Atlas.
 
+## 🔒 Security Notice
+
+**IMPORTANT**: Never commit your `.env` file to version control! It contains sensitive information like database credentials and JWT secrets. The `.env` file is already included in `.gitignore` to prevent accidental commits.
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -11,7 +15,13 @@ A robust Node.js/Express backend API for the Scarlet e-commerce platform, optimi
 
 ### 1. Environment Setup
 
-Create a `.env` file in the backend root directory:
+Copy the example environment file and configure your settings:
+
+```bash
+cp .env.example .env
+```
+
+Then edit the `.env` file with your actual configuration:
 
 ```bash
 # Environment Configuration
