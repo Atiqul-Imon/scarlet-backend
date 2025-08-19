@@ -61,4 +61,26 @@ export function requireRole(...roles: Array<'admin' | 'staff' | 'customer'>) {
   };
 }
 
+// Admin-specific middleware
+export const requireAdmin = requireRole('admin');
+export const requireAdminOrStaff = requireRole('admin', 'staff');
+
+// Audit logging middleware for admin actions
+export function auditLog(action: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'staff')) {
+      // Store audit info in request for later logging
+      (req as any).auditInfo = {
+        userId: req.user._id,
+        userEmail: req.user.email || req.user.phone,
+        action,
+        timestamp: new Date(),
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+      };
+    }
+    next();
+  };
+}
+
 

@@ -13,6 +13,7 @@ import { router as userRoutes } from './modules/users/routes.js';
 import { router as catalogRoutes } from './modules/catalog/routes.js';
 import { router as cartRoutes } from './modules/cart/routes.js';
 import { router as orderRoutes } from './modules/orders/routes.js';
+import { router as adminRoutes } from './modules/admin/routes.js';
 
 export function createApp() {
   const app = express();
@@ -32,6 +33,7 @@ export function createApp() {
   app.use('/api/catalog', catalogRoutes);
   app.use('/api/cart', cartRoutes);
   app.use('/api/orders', orderRoutes);
+  app.use('/api/admin', adminRoutes);
 
   app.use((req, res) => res.status(404).json({ success: false, error: { message: 'Not Found' } }));
   app.use((err: any, req: any, res: any, _next: any) => { try { req.log?.error?.(err); } catch {} res.status(500).json({ success: false, error: { message: 'Internal Server Error' } }); });

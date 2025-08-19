@@ -64,7 +64,8 @@ export function createServer() {
   return server;
 }
 
-if (process.env.NODE_ENV !== 'test' && process.env.AUTO_START === 'true') {
+// Auto-start server unless in test mode
+if (process.env.NODE_ENV !== 'test') {
   createServer();
 }
 
