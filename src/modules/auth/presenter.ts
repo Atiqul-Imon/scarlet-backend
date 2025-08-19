@@ -152,14 +152,8 @@ export async function loginUser(input: LoginRequest): Promise<AuthResponse> {
   try {
     const normalizedIdentifier = normalizeIdentifier(input.identifier);
     
-    // Find user by email or phone
-    let user: User | null = null;
-    
-    if (validateEmail(normalizedIdentifier)) {
-      user = await repo.findUserByEmail(normalizedIdentifier);
-    } else if (validatePhone(normalizedIdentifier)) {
-      user = await repo.findUserByPhone(normalizedIdentifier);
-    }
+    // Find user by email or phone using the unified function
+    const user = await repo.findUserByIdentifier(normalizedIdentifier);
 
     // Verify user and password
     if (!user || !(await argon2.verify(user.passwordHash, input.password))) {

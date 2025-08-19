@@ -9,7 +9,11 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:mongo": "node scripts/test-mongo-connection.js",
-    "setup": "npm run test:mongo && npm run typecheck"
+    "setup": "npm run test:mongo && npm run typecheck",
+    "create-admin": "node scripts/create-admin.js",
+    "verify-admin": "node scripts/verify-admin.js",
+    "debug-login": "node scripts/debug-login.js",
+    "recreate-admin": "node scripts/recreate-admin.js"
   },
   "keywords": [],
   "author": "",
