@@ -6,6 +6,9 @@ export interface Category {
   description?: string;
   image?: string;
   isActive?: boolean;
+  showInHomepage?: boolean;
+  sortOrder?: number;
+  icon?: string;
   createdAt?: string;
   updatedAt?: string;
 }

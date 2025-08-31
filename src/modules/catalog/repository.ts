@@ -19,7 +19,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
 export async function getProductById(id: string): Promise<Product | null> {
   const db = await getDb();
   const { ObjectId } = await import('mongodb');
-  return db.collection<Product>('products').findOne({ _id: new ObjectId(id), isActive: { $ne: false } });
+  return db.collection<Product>('products').findOne({ _id: new ObjectId(id), isActive: { $ne: false } } as any);
 }
 
 export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
@@ -27,7 +27,7 @@ export async function getProductsByCategory(categoryId: string): Promise<Product
   const { ObjectId } = await import('mongodb');
   return db.collection<Product>('products')
     .find({ 
-      categoryIds: new ObjectId(categoryId), 
+      categoryIds: { $in: [categoryId] }, 
       isActive: { $ne: false } 
     })
     .limit(100)

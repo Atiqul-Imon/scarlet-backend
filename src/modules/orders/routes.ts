@@ -4,7 +4,17 @@ import { requireAuth } from '../../core/middleware/auth.js';
 import * as controller from './controller.js';
 
 export const router = Router();
-router.post('/create', requireAuth, asyncHandler(controller.create));
-router.get('/', requireAuth, asyncHandler(controller.listMine));
+
+// Create new order from cart
+router.post('/create', requireAuth, controller.create);
+
+// Get user's orders
+router.get('/', requireAuth, controller.listMine);
+
+// Get specific order by ID
+router.get('/:orderId', requireAuth, controller.getOrder);
+
+// Cancel order
+router.post('/:orderId/cancel', requireAuth, controller.cancelOrder);
 
 
