@@ -37,7 +37,7 @@ const normalizeIdentifier = (identifier: string): string => {
   if (validatePhone(identifier)) {
     // Normalize phone to +8801XXXXXXXXX format
     if (identifier.startsWith('01')) {
-      return '+880' + identifier;
+      return '+8801' + identifier.substring(2); // Remove '01' and add '+8801'
     }
     return identifier;
   }

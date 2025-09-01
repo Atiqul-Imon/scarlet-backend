@@ -24,17 +24,8 @@ const validatePhone = (phone: string): boolean => {
 };
 
 const validatePassword = (password: string): { valid: boolean; message?: string } => {
-  if (password.length < 8) {
-    return { valid: false, message: 'Password must be at least 8 characters long' };
-  }
-  if (!/(?=.*[a-z])/.test(password)) {
-    return { valid: false, message: 'Password must contain at least one lowercase letter' };
-  }
-  if (!/(?=.*[A-Z])/.test(password)) {
-    return { valid: false, message: 'Password must contain at least one uppercase letter' };
-  }
-  if (!/(?=.*\d)/.test(password)) {
-    return { valid: false, message: 'Password must contain at least one number' };
+  if (password.length < 4) {
+    return { valid: false, message: 'Password must be at least 4 characters long' };
   }
   return { valid: true };
 };
@@ -88,8 +79,8 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     errors.firstName = 'First name must be between 2 and 50 characters';
   }
 
-  // Validate lastName if provided
-  if (lastName && !validateName(lastName)) {
+  // Validate lastName if provided (optional)
+  if (lastName && lastName.trim() && !validateName(lastName)) {
     errors.lastName = 'Last name must be between 2 and 50 characters';
   }
 
