@@ -1,4 +1,5 @@
 import { getDb } from '../../core/db/mongoClient.js';
+import { ObjectId } from 'mongodb';
 import type { 
   AdminActivityLog, 
   AdminUserFilters, 
@@ -12,7 +13,7 @@ import type { Order } from '../orders/model.js';
 
 // Activity Logging
 export async function logAdminActivity(log: Omit<AdminActivityLog, '_id'>): Promise<void> {
-  const db = getDb();
+  const db = await getDb();
   await db.collection('admin_activity_logs').insertOne({
     ...log,
     timestamp: new Date()
@@ -23,7 +24,7 @@ export async function getAdminActivityLogs(
   page: number = 1, 
   limit: number = 50
 ): Promise<{ logs: AdminActivityLog[]; total: number }> {
-  const db = getDb();
+  const db = await getDb();
   const skip = (page - 1) * limit;
   
   const [logs, total] = await Promise.all([
@@ -45,7 +46,7 @@ export async function getUsers(
   page: number = 1, 
   limit: number = 50
 ): Promise<{ users: User[]; total: number }> {
-  const db = getDb();
+  const db = await getDb();
   const skip = (page - 1) * limit;
   
   // Build query
@@ -81,17 +82,17 @@ export async function getUsers(
 }
 
 export async function updateUserRole(userId: string, role: 'admin' | 'staff' | 'customer'): Promise<boolean> {
-  const db = getDb();
+  const db = await getDb();
   const result = await db.collection('users').updateOne(
-    { _id: userId },
+    { _id: new ObjectId(userId) },
     { $set: { role, updatedAt: new Date() } }
   );
   return result.modifiedCount > 0;
 }
 
 export async function deleteUser(userId: string): Promise<boolean> {
-  const db = getDb();
-  const result = await db.collection('users').deleteOne({ _id: userId });
+  const db = await getDb();
+  const result = await db.collection('users').deleteOne({ _id: new ObjectId(userId) });
   return result.deletedCount > 0;
 }
 
@@ -101,16 +102,18 @@ export async function getProducts(
   page: number = 1, 
   limit: number = 50
 ): Promise<{ products: Product[]; total: number }> {
-  const db = getDb();
+  const db = await getDb();
   const skip = (page - 1) * limit;
   
   // Build query
   const query: any = {};
-  if (filters.category) query.category = filters.category;
+  if (filters.category) {
+    query.categoryIds = filters.category; // Product uses categoryIds array
+  }
   if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
-    query.price = {};
-    if (filters.priceMin !== undefined) query.price.$gte = filters.priceMin;
-    if (filters.priceMax !== undefined) query.price.$lte = filters.priceMax;
+    query['price.amount'] = {}; // Price is an object with amount field
+    if (filters.priceMin !== undefined) query['price.amount'].$gte = filters.priceMin;
+    if (filters.priceMax !== undefined) query['price.amount'].$lte = filters.priceMax;
   }
   if (filters.inStock !== undefined) {
     query.stock = filters.inStock ? { $gt: 0 } : { $lte: 0 };
@@ -120,9 +123,10 @@ export async function getProducts(
   }
   if (filters.search) {
     query.$or = [
-      { name: { $regex: filters.search, $options: 'i' } },
+      { title: { $regex: filters.search, $options: 'i' } }, // Changed from 'name' to 'title'
       { description: { $regex: filters.search, $options: 'i' } },
-      { sku: { $regex: filters.search, $options: 'i' } }
+      { slug: { $regex: filters.search, $options: 'i' } }, // Changed from 'sku' to 'slug'
+      { brand: { $regex: filters.search, $options: 'i' } } // Added brand search
     ];
   }
   
@@ -140,17 +144,17 @@ export async function getProducts(
 }
 
 export async function updateProductStock(productId: string, stock: number): Promise<boolean> {
-  const db = getDb();
+  const db = await getDb();
   const result = await db.collection('products').updateOne(
-    { _id: productId },
+    { _id: new ObjectId(productId) },
     { $set: { stock, updatedAt: new Date() } }
   );
   return result.modifiedCount > 0;
 }
 
 export async function deleteProduct(productId: string): Promise<boolean> {
-  const db = getDb();
-  const result = await db.collection('products').deleteOne({ _id: productId });
+  const db = await getDb();
+  const result = await db.collection('products').deleteOne({ _id: new ObjectId(productId) });
   return result.deletedCount > 0;
 }
 
@@ -160,7 +164,7 @@ export async function getOrders(
   page: number = 1, 
   limit: number = 50
 ): Promise<{ orders: Order[]; total: number }> {
-  const db = getDb();
+  const db = await getDb();
   const skip = (page - 1) * limit;
   
   // Build query
@@ -202,12 +206,12 @@ export async function updateOrderStatus(
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded',
   trackingNumber?: string
 ): Promise<boolean> {
-  const db = getDb();
+  const db = await getDb();
   const updateData: any = { status, updatedAt: new Date() };
   if (trackingNumber) updateData.trackingNumber = trackingNumber;
   
   const result = await db.collection('orders').updateOne(
-    { _id: orderId },
+    { _id: new ObjectId(orderId) },
     { $set: updateData }
   );
   return result.modifiedCount > 0;
@@ -215,7 +219,7 @@ export async function updateOrderStatus(
 
 // Analytics
 export async function getDashboardStats(): Promise<any> {
-  const db = getDb();
+  const db = await getDb();
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -271,13 +275,13 @@ export async function getDashboardStats(): Promise<any> {
 
 // System Settings
 export async function getSystemSettings(): Promise<SystemSettings | null> {
-  const db = getDb();
+  const db = await getDb();
   const settings = await db.collection('system_settings').findOne({});
   return settings as SystemSettings | null;
 }
 
 export async function updateSystemSettings(settings: Partial<SystemSettings>): Promise<boolean> {
-  const db = getDb();
+  const db = await getDb();
   const result = await db.collection('system_settings').updateOne(
     {},
     { $set: { ...settings, updatedAt: new Date() } },
