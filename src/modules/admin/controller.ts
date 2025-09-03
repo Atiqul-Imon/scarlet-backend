@@ -151,6 +151,31 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
   ok(res, result);
 });
 
+export const createProduct = asyncHandler(async (req: Request, res: Response) => {
+  const productData = req.body;
+  
+  // Validate required fields
+  if (!productData.name || !productData.slug || !productData.price || !productData.sku) {
+    return fail(res, 'Missing required fields: name, slug, price, and sku are required', 'MISSING_REQUIRED_FIELDS', 400);
+  }
+  
+  const product = await presenter.createProduct(productData);
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'CREATE_PRODUCT',
+      { productId: product._id, productName: product.title },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  created(res, product);
+});
+
 export const updateProductStock = asyncHandler(async (req: Request, res: Response) => {
   const { productId } = req.params;
   const { stock } = req.body;

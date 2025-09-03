@@ -94,6 +94,51 @@ export async function getProducts(filters: AdminProductFilters = {}, page: numbe
   }
 }
 
+export async function createProduct(productData: any) {
+  try {
+    // Transform frontend data to match backend model
+    const product = {
+      title: productData.name,
+      slug: productData.slug,
+      description: productData.description || '',
+      shortDescription: productData.shortDescription || '',
+      price: {
+        amount: productData.price,
+        currency: 'BDT',
+        originalAmount: productData.comparePrice || undefined
+      },
+      sku: productData.sku,
+      barcode: productData.barcode || '',
+      brand: productData.brand || '',
+      images: productData.images || [],
+      stock: productData.stock || 0,
+      lowStockThreshold: productData.lowStockThreshold || 10,
+      trackInventory: productData.trackInventory !== false,
+      status: productData.status || 'draft',
+      weight: productData.weight || 0,
+      dimensions: productData.dimensions || { length: 0, width: 0, height: 0 },
+      seoTitle: productData.seoTitle || productData.name,
+      seoDescription: productData.seoDescription || productData.shortDescription || '',
+      seoKeywords: productData.seoKeywords || [],
+      tags: productData.tags || [],
+      categoryIds: productData.category ? [productData.category] : [],
+      attributes: {
+        category: productData.category,
+        subcategory: productData.subcategory,
+        cost: productData.cost || 0
+      },
+      variants: productData.variants || []
+    };
+
+    const createdProduct = await repo.createProduct(product);
+    return createdProduct;
+  } catch (error) {
+    logger.error({ error, productData }, 'Failed to create product');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to create product', 'PRODUCT_CREATE_ERROR');
+  }
+}
+
 export async function updateProductStock(productId: string, stock: number): Promise<void> {
   try {
     if (stock < 0) {

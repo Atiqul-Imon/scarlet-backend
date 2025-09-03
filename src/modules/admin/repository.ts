@@ -143,6 +143,38 @@ export async function getProducts(
   return { products: products as Product[], total };
 }
 
+export async function createProduct(productData: any): Promise<Product> {
+  const db = await getDb();
+  
+  // Check if product with same slug already exists
+  const existingProduct = await db.collection('products').findOne({ slug: productData.slug });
+  if (existingProduct) {
+    throw new Error('Product with this slug already exists');
+  }
+  
+  // Check if product with same SKU already exists
+  const existingSku = await db.collection('products').findOne({ sku: productData.sku });
+  if (existingSku) {
+    throw new Error('Product with this SKU already exists');
+  }
+  
+  const product = {
+    ...productData,
+    _id: new ObjectId(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    isActive: productData.status === 'active',
+    isNewArrival: true, // New products are marked as new arrivals
+    isBestSeller: false,
+    isFeatured: false,
+    salesCount: 0,
+    viewCount: 0
+  };
+  
+  await db.collection('products').insertOne(product);
+  return product as Product;
+}
+
 export async function updateProductStock(productId: string, stock: number): Promise<boolean> {
   const db = await getDb();
   const result = await db.collection('products').updateOne(

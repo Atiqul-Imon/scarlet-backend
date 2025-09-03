@@ -17,6 +17,7 @@ router.delete('/users/:userId', requireAdmin, auditLog('DELETE_USER'), controlle
 
 // Product Management - admin and staff
 router.get('/products', requireAdminOrStaff, auditLog('VIEW_PRODUCTS'), controller.getProducts);
+router.post('/products', requireAdminOrStaff, auditLog('CREATE_PRODUCT'), controller.createProduct);
 router.patch('/products/:productId/stock', requireAdminOrStaff, auditLog('UPDATE_PRODUCT_STOCK'), controller.updateProductStock);
 router.delete('/products/:productId', requireAdmin, auditLog('DELETE_PRODUCT'), controller.deleteProduct);
 

@@ -7,16 +7,21 @@ import { logger } from '../logging/logger.js';
 
 export async function authenticate(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers['authorization'];
+  
+
+  
   if (header?.startsWith('Bearer ')) {
     const token = header.slice('Bearer '.length);
     
     // Check if token is blacklisted
     if (tokenBlacklist.has(token)) {
+
       return next();
     }
     
     try {
       const payload = jwt.verify(token, env.jwtSecret) as any;
+
       
       // Get full user data from database
       const user = await findUserById(payload.sub);
@@ -25,8 +30,11 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
         req.userId = user._id?.toString();
       }
     } catch (error) {
+
       logger.warn({ error, token: token.substring(0, 10) + '...' }, 'Invalid JWT token');
     }
+  } else {
+
   }
   next();
 }

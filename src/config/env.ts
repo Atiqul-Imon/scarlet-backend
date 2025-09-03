@@ -19,15 +19,23 @@ function requireNumber(name: string, fallback?: number): number {
   return n;
 }
 
+const nodeEnv = (process.env.NODE_ENV ?? 'development') as 'development' | 'test' | 'production';
+const isProduction = nodeEnv === 'production';
+
 export const env = {
-  nodeEnv: (process.env.NODE_ENV ?? 'development') as 'development' | 'test' | 'production',
-  port: requireNumber('PORT', 4000),
-  mongoUri: requireString('MONGO_URI', 'mongodb://localhost:27017/scarlet'),
+  nodeEnv,
+  port: requireNumber('PORT', isProduction ? 10000 : 4000),
+  mongoUri: requireString('MONGODB_URI', requireString('MONGO_URI', 'mongodb://localhost:27017/scarlet')),
   dbName: process.env.DB_NAME, // Optional: override database name
   jwtSecret: requireString('JWT_SECRET', 'change-me-in-prod'),
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  bcryptSaltRounds: requireNumber('BCRYPT_SALT_ROUNDS', 12),
+  corsOrigin: process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:3000',
+  apiRateLimit: requireNumber('API_RATE_LIMIT', 100),
+  maxFileSize: requireNumber('MAX_FILE_SIZE', 5 * 1024 * 1024), // 5MB
   // Additional Atlas-specific configurations
   apiBaseUrl: process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 4000}/api`,
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
 };
 
-export const isProduction = env.nodeEnv === 'production';
+export { isProduction };
