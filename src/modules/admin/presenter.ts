@@ -29,7 +29,7 @@ export async function getDashboardStats(): Promise<AdminStats> {
     };
   } catch (error) {
     logger.error({ error }, 'Failed to get dashboard stats');
-    throw new AppError('Failed to retrieve dashboard statistics', 'STATS_ERROR');
+    throw new AppError('Failed to retrieve dashboard statistics', { code: 'STATS_ERROR' });
   }
 }
 
@@ -48,7 +48,7 @@ export async function getUsers(filters: AdminUserFilters = {}, page: number = 1,
     };
   } catch (error) {
     logger.error({ error, filters }, 'Failed to get users');
-    throw new AppError('Failed to retrieve users', 'USER_FETCH_ERROR');
+    throw new AppError('Failed to retrieve users', { code: 'USER_FETCH_ERROR' });
   }
 }
 
@@ -56,12 +56,12 @@ export async function updateUserRole(userId: string, role: 'admin' | 'staff' | '
   try {
     const success = await repo.updateUserRole(userId, role);
     if (!success) {
-      throw new AppError('User not found or update failed', 'USER_UPDATE_ERROR');
+      throw new AppError('User not found or update failed', { code: 'USER_UPDATE_ERROR' });
     }
   } catch (error) {
     logger.error({ error, userId, role }, 'Failed to update user role');
     if (error instanceof AppError) throw error;
-    throw new AppError('Failed to update user role', 'USER_UPDATE_ERROR');
+    throw new AppError('Failed to update user role', { code: 'USER_UPDATE_ERROR' });
   }
 }
 
@@ -69,12 +69,12 @@ export async function deleteUser(userId: string): Promise<void> {
   try {
     const success = await repo.deleteUser(userId);
     if (!success) {
-      throw new AppError('User not found or deletion failed', 'USER_DELETE_ERROR');
+      throw new AppError('User not found or deletion failed', { code: 'USER_DELETE_ERROR' });
     }
   } catch (error) {
     logger.error({ error, userId }, 'Failed to delete user');
     if (error instanceof AppError) throw error;
-    throw new AppError('Failed to delete user', 'USER_DELETE_ERROR');
+    throw new AppError('Failed to delete user', { code: 'USER_DELETE_ERROR' });
   }
 }
 
@@ -90,7 +90,18 @@ export async function getProducts(filters: AdminProductFilters = {}, page: numbe
     };
   } catch (error) {
     logger.error({ error, filters }, 'Failed to get products');
-    throw new AppError('Failed to retrieve products', 'PRODUCT_FETCH_ERROR');
+    throw new AppError('Failed to retrieve products', { code: 'PRODUCT_FETCH_ERROR' });
+  }
+}
+
+export async function getProduct(productId: string) {
+  try {
+    const product = await repo.getProduct(productId);
+    return product;
+  } catch (error) {
+    logger.error({ error, productId }, 'Failed to get product');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to retrieve product', { code: 'PRODUCT_FETCH_ERROR' });
   }
 }
 
@@ -135,24 +146,69 @@ export async function createProduct(productData: any) {
   } catch (error) {
     logger.error({ error, productData }, 'Failed to create product');
     if (error instanceof AppError) throw error;
-    throw new AppError('Failed to create product', 'PRODUCT_CREATE_ERROR');
+    throw new AppError('Failed to create product', { code: 'PRODUCT_CREATE_ERROR' });
+  }
+}
+
+export async function updateProduct(productId: string, productData: any) {
+  try {
+    // Transform frontend data to match backend model
+    const product = {
+      title: productData.name,
+      slug: productData.slug,
+      description: productData.description || '',
+      shortDescription: productData.shortDescription || '',
+      price: {
+        amount: productData.price,
+        currency: 'BDT',
+        originalAmount: productData.comparePrice || undefined
+      },
+      sku: productData.sku,
+      barcode: productData.barcode || '',
+      brand: productData.brand || '',
+      images: productData.images || [],
+      stock: productData.stock || 0,
+      lowStockThreshold: productData.lowStockThreshold || 10,
+      trackInventory: productData.trackInventory !== false,
+      status: productData.status || 'draft',
+      weight: productData.weight || 0,
+      dimensions: productData.dimensions || { length: 0, width: 0, height: 0 },
+      seoTitle: productData.seoTitle || productData.name,
+      seoDescription: productData.seoDescription || productData.shortDescription || '',
+      seoKeywords: productData.seoKeywords || [],
+      tags: productData.tags || [],
+      categoryIds: productData.category ? [productData.category] : [],
+      attributes: {
+        category: productData.category,
+        subcategory: productData.subcategory,
+        cost: productData.cost || 0
+      },
+      variants: productData.variants || []
+    };
+
+    const updatedProduct = await repo.updateProduct(productId, product);
+    return updatedProduct;
+  } catch (error) {
+    logger.error({ error, productId, productData }, 'Failed to update product');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to update product', { code: 'PRODUCT_UPDATE_ERROR' });
   }
 }
 
 export async function updateProductStock(productId: string, stock: number): Promise<void> {
   try {
     if (stock < 0) {
-      throw new AppError('Stock cannot be negative', 'INVALID_STOCK');
+      throw new AppError('Stock cannot be negative', { code: 'INVALID_STOCK' });
     }
     
     const success = await repo.updateProductStock(productId, stock);
     if (!success) {
-      throw new AppError('Product not found or update failed', 'PRODUCT_UPDATE_ERROR');
+      throw new AppError('Product not found or update failed', { code: 'PRODUCT_UPDATE_ERROR' });
     }
   } catch (error) {
     logger.error({ error, productId, stock }, 'Failed to update product stock');
     if (error instanceof AppError) throw error;
-    throw new AppError('Failed to update product stock', 'PRODUCT_UPDATE_ERROR');
+    throw new AppError('Failed to update product stock', { code: 'PRODUCT_UPDATE_ERROR' });
   }
 }
 
@@ -160,12 +216,12 @@ export async function deleteProduct(productId: string): Promise<void> {
   try {
     const success = await repo.deleteProduct(productId);
     if (!success) {
-      throw new AppError('Product not found or deletion failed', 'PRODUCT_DELETE_ERROR');
+      throw new AppError('Product not found or deletion failed', { code: 'PRODUCT_DELETE_ERROR' });
     }
   } catch (error) {
     logger.error({ error, productId }, 'Failed to delete product');
     if (error instanceof AppError) throw error;
-    throw new AppError('Failed to delete product', 'PRODUCT_DELETE_ERROR');
+    throw new AppError('Failed to delete product', { code: 'PRODUCT_DELETE_ERROR' });
   }
 }
 
@@ -181,7 +237,7 @@ export async function getOrders(filters: AdminOrderFilters = {}, page: number = 
     };
   } catch (error) {
     logger.error({ error, filters }, 'Failed to get orders');
-    throw new AppError('Failed to retrieve orders', 'ORDER_FETCH_ERROR');
+    throw new AppError('Failed to retrieve orders', { code: 'ORDER_FETCH_ERROR' });
   }
 }
 
@@ -193,12 +249,12 @@ export async function updateOrderStatus(
   try {
     const success = await repo.updateOrderStatus(orderId, status, trackingNumber);
     if (!success) {
-      throw new AppError('Order not found or update failed', 'ORDER_UPDATE_ERROR');
+      throw new AppError('Order not found or update failed', { code: 'ORDER_UPDATE_ERROR' });
     }
   } catch (error) {
     logger.error({ error, orderId, status }, 'Failed to update order status');
     if (error instanceof AppError) throw error;
-    throw new AppError('Failed to update order status', 'ORDER_UPDATE_ERROR');
+    throw new AppError('Failed to update order status', { code: 'ORDER_UPDATE_ERROR' });
   }
 }
 
@@ -226,7 +282,7 @@ export async function getSalesAnalytics(dateFrom: Date, dateTo: Date): Promise<S
     };
   } catch (error) {
     logger.error({ error, dateFrom, dateTo }, 'Failed to get sales analytics');
-    throw new AppError('Failed to retrieve sales analytics', 'ANALYTICS_ERROR');
+    throw new AppError('Failed to retrieve sales analytics', { code: 'ANALYTICS_ERROR' });
   }
 }
 
@@ -251,7 +307,7 @@ export async function getUserAnalytics(): Promise<UserAnalytics> {
     };
   } catch (error) {
     logger.error({ error }, 'Failed to get user analytics');
-    throw new AppError('Failed to retrieve user analytics', 'ANALYTICS_ERROR');
+    throw new AppError('Failed to retrieve user analytics', { code: 'ANALYTICS_ERROR' });
   }
 }
 
@@ -289,7 +345,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
     return settings;
   } catch (error) {
     logger.error({ error }, 'Failed to get system settings');
-    throw new AppError('Failed to retrieve system settings', 'SETTINGS_ERROR');
+    throw new AppError('Failed to retrieve system settings', { code: 'SETTINGS_ERROR' });
   }
 }
 
@@ -297,12 +353,12 @@ export async function updateSystemSettings(settings: Partial<SystemSettings>): P
   try {
     const success = await repo.updateSystemSettings(settings);
     if (!success) {
-      throw new AppError('Failed to update system settings', 'SETTINGS_UPDATE_ERROR');
+      throw new AppError('Failed to update system settings', { code: 'SETTINGS_UPDATE_ERROR' });
     }
   } catch (error) {
     logger.error({ error, settings }, 'Failed to update system settings');
     if (error instanceof AppError) throw error;
-    throw new AppError('Failed to update system settings', 'SETTINGS_UPDATE_ERROR');
+    throw new AppError('Failed to update system settings', { code: 'SETTINGS_UPDATE_ERROR' });
   }
 }
 
@@ -342,6 +398,6 @@ export async function getActivityLogs(page: number = 1, limit: number = 50) {
     };
   } catch (error) {
     logger.error({ error }, 'Failed to get activity logs');
-    throw new AppError('Failed to retrieve activity logs', 'LOGS_ERROR');
+    throw new AppError('Failed to retrieve activity logs', { code: 'LOGS_ERROR' });
   }
 }

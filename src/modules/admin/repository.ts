@@ -37,7 +37,7 @@ export async function getAdminActivityLogs(
     db.collection('admin_activity_logs').countDocuments({})
   ]);
   
-  return { logs: logs as AdminActivityLog[], total };
+  return { logs: logs as unknown as AdminActivityLog[], total };
 }
 
 // User Management
@@ -78,7 +78,7 @@ export async function getUsers(
     db.collection('users').countDocuments(query)
   ]);
   
-  return { users: users as User[], total };
+  return { users: users as unknown as User[], total };
 }
 
 export async function updateUserRole(userId: string, role: 'admin' | 'staff' | 'customer'): Promise<boolean> {
@@ -140,7 +140,20 @@ export async function getProducts(
     db.collection('products').countDocuments(query)
   ]);
   
-  return { products: products as Product[], total };
+  return { products: products as unknown as Product[], total };
+}
+
+export async function getProduct(productId: string): Promise<Product | null> {
+  const db = await getDb();
+  
+  try {
+    const objectId = new ObjectId(productId);
+    const product = await db.collection('products').findOne({ _id: objectId });
+    return product as Product | null;
+  } catch (error) {
+    console.error('Error getting product:', error);
+    return null;
+  }
 }
 
 export async function createProduct(productData: any): Promise<Product> {
@@ -173,6 +186,56 @@ export async function createProduct(productData: any): Promise<Product> {
   
   await db.collection('products').insertOne(product);
   return product as Product;
+}
+
+export async function updateProduct(productId: string, productData: any): Promise<Product | null> {
+  const db = await getDb();
+  
+  // Check if product exists
+  const existingProduct = await db.collection('products').findOne({ _id: new ObjectId(productId) });
+  if (!existingProduct) {
+    return null;
+  }
+  
+  // Check if slug is being changed and if new slug already exists
+  if (productData.slug && productData.slug !== existingProduct.slug) {
+    const slugExists = await db.collection('products').findOne({ 
+      slug: productData.slug, 
+      _id: { $ne: new ObjectId(productId) } 
+    });
+    if (slugExists) {
+      throw new Error('Product with this slug already exists');
+    }
+  }
+  
+  // Check if SKU is being changed and if new SKU already exists
+  if (productData.sku && productData.sku !== existingProduct.sku) {
+    const skuExists = await db.collection('products').findOne({ 
+      sku: productData.sku, 
+      _id: { $ne: new ObjectId(productId) } 
+    });
+    if (skuExists) {
+      throw new Error('Product with this SKU already exists');
+    }
+  }
+  
+  const updateData = {
+    ...productData,
+    updatedAt: new Date(),
+    isActive: productData.status === 'active'
+  };
+  
+  const result = await db.collection('products').updateOne(
+    { _id: new ObjectId(productId) },
+    { $set: updateData }
+  );
+  
+  if (result.modifiedCount > 0) {
+    const updatedProduct = await db.collection('products').findOne({ _id: new ObjectId(productId) });
+    return updatedProduct as unknown as Product;
+  }
+  
+  return null;
 }
 
 export async function updateProductStock(productId: string, stock: number): Promise<boolean> {
@@ -230,7 +293,7 @@ export async function getOrders(
     db.collection('orders').countDocuments(query)
   ]);
   
-  return { orders: orders as Order[], total };
+  return { orders: orders as unknown as Order[], total };
 }
 
 export async function updateOrderStatus(

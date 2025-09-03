@@ -67,7 +67,7 @@ export const updateUserRole = asyncHandler(async (req: Request, res: Response) =
   const { role } = req.body;
   
   if (!role || !['admin', 'staff', 'customer'].includes(role)) {
-    return fail(res, 'Invalid role specified', 'INVALID_ROLE', 400);
+    return fail(res, { message: 'Invalid role specified', code: 'INVALID_ROLE' }, 400);
   }
   
   await presenter.updateUserRole(userId, role);
@@ -92,7 +92,7 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   
   // Prevent admin from deleting themselves
   if (req.user && req.user._id?.toString() === userId) {
-    return fail(res, 'Cannot delete your own account', 'CANNOT_DELETE_SELF', 400);
+    return fail(res, { message: 'Cannot delete your own account', code: 'CANNOT_DELETE_SELF' }, 400);
   }
   
   await presenter.deleteUser(userId);
@@ -151,12 +151,36 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
   ok(res, result);
 });
 
+export const getProduct = asyncHandler(async (req: Request, res: Response) => {
+  const { productId } = req.params;
+  
+  const product = await presenter.getProduct(productId);
+  
+  if (!product) {
+    return fail(res, { message: 'Product not found', code: 'PRODUCT_NOT_FOUND' }, 404);
+  }
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'VIEW_PRODUCT',
+      { productId },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  ok(res, product);
+});
+
 export const createProduct = asyncHandler(async (req: Request, res: Response) => {
   const productData = req.body;
   
   // Validate required fields
   if (!productData.name || !productData.slug || !productData.price || !productData.sku) {
-    return fail(res, 'Missing required fields: name, slug, price, and sku are required', 'MISSING_REQUIRED_FIELDS', 400);
+    return fail(res, { message: 'Missing required fields: name, slug, price, and sku are required', code: 'MISSING_REQUIRED_FIELDS' }, 400);
   }
   
   const product = await presenter.createProduct(productData);
@@ -176,12 +200,42 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
   created(res, product);
 });
 
+export const updateProduct = asyncHandler(async (req: Request, res: Response) => {
+  const { productId } = req.params;
+  const productData = req.body;
+  
+  // Validate required fields
+  if (!productData.name || !productData.slug || !productData.price || !productData.sku) {
+    return fail(res, { message: 'Missing required fields: name, slug, price, and sku are required', code: 'MISSING_REQUIRED_FIELDS' }, 400);
+  }
+  
+  const product = await presenter.updateProduct(productId, productData);
+  
+  if (!product) {
+    return fail(res, { message: 'Product not found', code: 'PRODUCT_NOT_FOUND' }, 404);
+  }
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'UPDATE_PRODUCT',
+      { productId, productName: product.title },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  ok(res, product);
+});
+
 export const updateProductStock = asyncHandler(async (req: Request, res: Response) => {
   const { productId } = req.params;
   const { stock } = req.body;
   
   if (typeof stock !== 'number' || stock < 0) {
-    return fail(res, 'Invalid stock value', 'INVALID_STOCK', 400);
+    return fail(res, { message: 'Invalid stock value', code: 'INVALID_STOCK' }, 400);
   }
   
   await presenter.updateProductStock(productId, stock);
@@ -266,7 +320,7 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
   
   const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
   if (!status || !validStatuses.includes(status)) {
-    return fail(res, 'Invalid order status', 'INVALID_STATUS', 400);
+    return fail(res, { message: 'Invalid order status', code: 'INVALID_STATUS' }, 400);
   }
   
   await presenter.updateOrderStatus(orderId, status, trackingNumber);
@@ -291,7 +345,7 @@ export const getSalesAnalytics = asyncHandler(async (req: Request, res: Response
   const { dateFrom, dateTo } = req.query;
   
   if (!dateFrom || !dateTo) {
-    return fail(res, 'Date range is required', 'MISSING_DATE_RANGE', 400);
+    return fail(res, { message: 'Date range is required', code: 'MISSING_DATE_RANGE' }, 400);
   }
   
   const analytics = await presenter.getSalesAnalytics(
