@@ -35,7 +35,33 @@ export const env = {
   maxFileSize: requireNumber('MAX_FILE_SIZE', 5 * 1024 * 1024), // 5MB
   // Additional Atlas-specific configurations
   apiBaseUrl: process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 4000}/api`,
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  
+  // Payment Gateway Configurations
+  // bKash Configuration
+  bkashAppKey: process.env.BKASH_APP_KEY,
+  bkashAppSecret: process.env.BKASH_APP_SECRET,
+  bkashUsername: process.env.BKASH_USERNAME,
+  bkashPassword: process.env.BKASH_PASSWORD,
+  bkashSandbox: process.env.BKASH_SANDBOX || 'true',
+  bkashBaseUrl: process.env.BKASH_BASE_URL,
+  bkashCallbackUrl: process.env.BKASH_CALLBACK_URL,
+  bkashMerchantId: process.env.BKASH_MERCHANT_ID,
+  
+  // Nagad Configuration
+  nagadMerchantId: process.env.NAGAD_MERCHANT_ID,
+  nagadMerchantPrivateKey: process.env.NAGAD_MERCHANT_PRIVATE_KEY,
+  nagadPublicKey: process.env.NAGAD_PUBLIC_KEY,
+  nagadSandbox: process.env.NAGAD_SANDBOX || 'true',
+  nagadBaseUrl: process.env.NAGAD_BASE_URL,
+  nagadCallbackUrl: process.env.NAGAD_CALLBACK_URL,
+  
+  // Rocket Configuration
+  rocketApiKey: process.env.ROCKET_API_KEY,
+  rocketSecretKey: process.env.ROCKET_SECRET_KEY,
+  rocketSandbox: process.env.ROCKET_SANDBOX || 'true',
+  rocketBaseUrl: process.env.ROCKET_BASE_URL,
+  rocketCallbackUrl: process.env.ROCKET_CALLBACK_URL
 };
 
 export { isProduction };
