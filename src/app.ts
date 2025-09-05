@@ -16,6 +16,7 @@ import { router as cartRoutes } from './modules/cart/routes.js';
 import { router as orderRoutes } from './modules/orders/routes.js';
 import { router as adminRoutes } from './modules/admin/routes.js';
 import { router as paymentRoutes } from './modules/payments/routes.js';
+import { router as addressRoutes } from './modules/addresses/routes.js';
 
 export function createApp() {
   const app = express();
@@ -90,6 +91,7 @@ export function createApp() {
   app.use('/api/orders', orderRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/payments', paymentRoutes);
+  app.use('/api/addresses', addressRoutes);
 
   app.use((req, res) => res.status(404).json({ success: false, error: { message: 'Not Found' } }));
   app.use((err: any, req: any, res: any, _next: any) => { try { req.log?.error?.(err); } catch {} res.status(500).json({ success: false, error: { message: 'Internal Server Error' } }); });
