@@ -13,13 +13,10 @@ const validateOrderData = (data: any): { valid: boolean; errors: Record<string, 
     errors.firstName = 'First name must be at least 2 characters';
   }
 
-  if (!data.lastName || data.lastName.trim().length < 2) {
-    errors.lastName = 'Last name must be at least 2 characters';
-  }
+  // Last name is optional - no validation needed
 
-  if (!data.email) {
-    errors.email = 'Email is required';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+  // Email is optional, but if provided, must be valid
+  if (data.email && data.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
     errors.email = 'Please enter a valid email address';
   }
 
@@ -79,8 +76,8 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
   try {
     const orderData: CreateOrderRequest = {
       firstName: req.body.firstName.trim(),
-      lastName: req.body.lastName.trim(),
-      email: req.body.email.toLowerCase().trim(),
+      lastName: req.body.lastName?.trim() || '',
+      email: req.body.email?.toLowerCase().trim() || '',
       phone: req.body.phone.trim(),
       address: req.body.address.trim(),
       city: req.body.city.trim(),

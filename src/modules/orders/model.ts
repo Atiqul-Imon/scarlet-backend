@@ -15,8 +15,8 @@ export interface OrderItem {
 
 export interface ShippingAddress {
   firstName: string;
-  lastName: string;
-  email: string;
+  lastName?: string; // Made optional
+  email?: string; // Made optional
   phone: string;
   address: string;
   city: string;

@@ -8,8 +8,8 @@ import { ObjectId } from 'mongodb';
 export interface CreateOrderRequest {
   // Shipping Information
   firstName: string;
-  lastName: string;
-  email: string;
+  lastName?: string; // Made optional
+  email?: string; // Made optional
   phone: string;
   address: string;
   city: string;
@@ -84,8 +84,8 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
   // Create shipping address
   const shippingAddress: ShippingAddress = {
     firstName: orderData.firstName,
-    lastName: orderData.lastName,
-    email: orderData.email,
+    lastName: orderData.lastName || '',
+    email: orderData.email || '',
     phone: orderData.phone,
     address: orderData.address,
     city: orderData.city,
