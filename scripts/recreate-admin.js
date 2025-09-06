@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 async function recreateAdmin() {
-  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017';
+  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb+srv://imonatikulislam:1LhIjsSyfIWCVlgz@cluster0.08anqce.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
   const dbName = process.env.DB_NAME || 'scarlet';
   
   console.log('🔧 Environment loaded:');

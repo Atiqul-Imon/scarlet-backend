@@ -18,6 +18,8 @@ import { router as adminRoutes } from './modules/admin/routes.js';
 import { router as paymentRoutes } from './modules/payments/routes.js';
 import { router as addressRoutes } from './modules/addresses/routes.js';
 import { router as wishlistRoutes } from './modules/wishlist/routes.js';
+import { router as inventoryRoutes } from './modules/inventory/routes.js';
+import { router as analyticsRoutes } from './modules/analytics/routes.js';
 
 export function createApp() {
   const app = express();
@@ -94,6 +96,8 @@ export function createApp() {
   app.use('/api/payments', paymentRoutes);
   app.use('/api/addresses', addressRoutes);
   app.use('/api/wishlist', wishlistRoutes);
+  app.use('/api/inventory', inventoryRoutes);
+  app.use('/api/analytics', analyticsRoutes);
 
   app.use((req, res) => res.status(404).json({ success: false, error: { message: 'Not Found' } }));
   app.use((err: any, req: any, res: any, _next: any) => { try { req.log?.error?.(err); } catch {} res.status(500).json({ success: false, error: { message: 'Internal Server Error' } }); });

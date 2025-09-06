@@ -25,7 +25,7 @@ const isProduction = nodeEnv === 'production';
 export const env = {
   nodeEnv,
   port: requireNumber('PORT', isProduction ? 10000 : 4000),
-  mongoUri: requireString('MONGODB_URI', requireString('MONGO_URI', 'mongodb://localhost:27017/scarlet')),
+  mongoUri: requireString('MONGODB_URI', requireString('MONGO_URI', 'mongodb+srv://imonatikulislam:1LhIjsSyfIWCVlgz@cluster0.08anqce.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')),
   dbName: process.env.DB_NAME, // Optional: override database name
   jwtSecret: requireString('JWT_SECRET', 'change-me-in-prod'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',

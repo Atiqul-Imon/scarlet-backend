@@ -47,7 +47,7 @@ async function testPaymentSystem() {
   try {
     // Test 1: Database Connection
     console.log('1️⃣ Testing Database Connection...');
-    const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/scarlet');
+    const client = new MongoClient(process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb+srv://imonatikulislam:1LhIjsSyfIWCVlgz@cluster0.08anqce.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0');
     await client.connect();
     console.log('✅ Database connected successfully\n');
 
