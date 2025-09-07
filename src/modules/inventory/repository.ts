@@ -41,13 +41,29 @@ export async function getAllInventoryItems(page: number = 1, limit: number = 50)
 
 export async function updateInventoryItem(productId: string, updates: Partial<InventoryItem>): Promise<InventoryItem | null> {
   const db = await getDb();
+  
+  // Prepare the update document with proper MongoDB operators
+  const updateDoc: any = {
+    $set: {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    }
+  };
+  
+  // Calculate availableStock if currentStock or reservedStock is being updated
+  if (updates.currentStock !== undefined || updates.reservedStock !== undefined) {
+    // Get current values to calculate availableStock
+    const currentItem = await db.collection<InventoryItem>('inventory').findOne({ productId });
+    if (currentItem) {
+      const newCurrentStock = updates.currentStock !== undefined ? updates.currentStock : currentItem.currentStock;
+      const newReservedStock = updates.reservedStock !== undefined ? updates.reservedStock : currentItem.reservedStock;
+      updateDoc.$set.availableStock = newCurrentStock - newReservedStock;
+    }
+  }
+  
   const result = await db.collection<InventoryItem>('inventory').findOneAndUpdate(
     { productId },
-    { 
-      ...updates, 
-      updatedAt: new Date().toISOString(),
-      availableStock: updates.currentStock ? updates.currentStock - (updates.reservedStock || 0) : undefined
-    },
+    updateDoc,
     { returnDocument: 'after' }
   );
   
