@@ -45,7 +45,7 @@ export const env = {
     'https://scarlet-frontend.vercel.app/',
     'http://localhost:3000',
     'http://localhost:3001'
-  ].filter(Boolean),
+  ].filter((origin): origin is string => Boolean(origin)),
   
   // Payment Gateway Configurations
   // bKash Configuration
