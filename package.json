@@ -26,6 +26,7 @@
   "description": "Ecommerce backend (Express 5 + TypeScript + ESM) - MVP",
   "private": true,
   "dependencies": {
+    "@types/cors": "^2.8.17",
     "argon2": "^0.43.1",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
