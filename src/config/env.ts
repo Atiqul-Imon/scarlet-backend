@@ -37,6 +37,16 @@ export const env = {
   apiBaseUrl: process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 4000}/api`,
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   
+  // Mobile and cross-origin support
+  allowedOrigins: [
+    process.env.CORS_ORIGIN,
+    process.env.FRONTEND_URL,
+    'https://scarlet-frontend.vercel.app',
+    'https://scarlet-frontend.vercel.app/',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ].filter(Boolean),
+  
   // Payment Gateway Configurations
   // bKash Configuration
   bkashAppKey: process.env.BKASH_APP_KEY,

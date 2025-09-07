@@ -47,14 +47,34 @@ export function createApp() {
   
   app.use(compression());
   
+  // Mobile-specific CORS headers
+  app.use((req, res, next) => {
+    // Add mobile-friendly headers
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.header('Access-Control-Expose-Headers', 'X-Total-Count, X-Page-Count');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
+    
+    next();
+  });
+  
   // CORS configuration
   app.use(cors({
     origin: isProduction 
-      ? [env.corsOrigin, env.frontendUrl].filter(Boolean)
+      ? env.allowedOrigins
       : true,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+    optionsSuccessStatus: 200, // For legacy browser support
   }));
   
   // Body parsing
@@ -87,6 +107,20 @@ export function createApp() {
   app.use(authenticate);
 
   app.use('/api/health', healthRoutes);
+  
+  // Mobile debugging endpoint
+  app.get('/api/mobile-debug', (req, res) => {
+    res.json({
+      success: true,
+      message: 'Mobile connection successful',
+      timestamp: new Date().toISOString(),
+      userAgent: req.headers['user-agent'],
+      origin: req.headers.origin,
+      host: req.headers.host,
+      environment: env.nodeEnv,
+      corsOrigins: env.allowedOrigins
+    });
+  });
   app.use('/api/auth', authRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/catalog', catalogRoutes);
