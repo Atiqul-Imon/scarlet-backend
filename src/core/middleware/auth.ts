@@ -15,12 +15,12 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     
     // Check if token is blacklisted
     if (tokenBlacklist.has(token)) {
-
-      return next();
+      logger.warn({ token: token.substring(0, 10) + '...' }, 'Blacklisted token attempted');
+      return next(); // Continue without setting user (will be rejected by requireAuth)
     }
     
     try {
-      const payload = jwt.verify(token, env.jwtSecret) as any;
+      const payload = jwt.verify(token, env.jwtSecret) as { sub: string; iat: number; exp: number };
 
       
       // Get full user data from database
@@ -78,7 +78,7 @@ export function auditLog(action: string) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (req.user && (req.user.role === 'admin' || req.user.role === 'staff')) {
       // Store audit info in request for later logging
-      (req as any).auditInfo = {
+      (req as Request & { auditInfo?: any }).auditInfo = {
         userId: req.user._id,
         userEmail: req.user.email || req.user.phone,
         action,
