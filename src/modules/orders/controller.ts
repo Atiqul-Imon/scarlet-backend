@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express';
+// Removed Express types import to match project pattern
 import { ok, fail } from '../../core/http/response.js';
 import { asyncHandler } from '../../core/http/asyncHandler.js';
 import * as presenter from './presenter.js';
@@ -53,8 +53,8 @@ const validateOrderData = (data: any): { valid: boolean; errors: Record<string, 
   return { valid: Object.keys(errors).length === 0, errors };
 };
 
-// Create order from cart
-export const create = asyncHandler(async (req: Request, res: Response) => {
+// Create order from cart (authenticated user)
+export async function create(req: any, res: any) {
   const userId = req.user?._id?.toString();
   
   if (!userId) {
@@ -113,10 +113,72 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
     
     throw error;
   }
-});
+}
+
+// Create guest order from cart
+export async function createGuestOrder(req: any, res: any) {
+  const sessionId = req.headers['x-session-id'] || req.body.sessionId;
+  
+  if (!sessionId) {
+    return fail(res, { 
+      message: 'Session ID required for guest orders',
+      code: 'SESSION_REQUIRED' 
+    }, 400);
+  }
+
+  // Validate order data
+  const validation = validateOrderData(req.body);
+  if (!validation.valid) {
+    return fail(res, { 
+      message: 'Validation failed',
+      code: 'VALIDATION_ERROR'
+    }, 400);
+  }
+
+  try {
+    const orderData: CreateOrderRequest = {
+      firstName: req.body.firstName.trim(),
+      lastName: req.body.lastName?.trim() || '',
+      email: req.body.email?.toLowerCase().trim() || '',
+      phone: req.body.phone.trim(),
+      address: req.body.address.trim(),
+      city: req.body.city.trim(),
+      area: req.body.area.trim(),
+      postalCode: req.body.postalCode.trim(),
+      paymentMethod: req.body.paymentMethod,
+      notes: req.body.notes?.trim() || undefined,
+    };
+
+    const order = await presenter.createGuestOrderFromCart(sessionId, orderData);
+    ok(res, order);
+  } catch (error: any) {
+    if (error.message.includes('Cart is empty')) {
+      return fail(res, { 
+        message: 'Your cart is empty. Please add items before placing an order.',
+        code: 'EMPTY_CART' 
+      }, 400);
+    }
+    
+    if (error.message.includes('not available')) {
+      return fail(res, { 
+        message: 'Some products in your cart are no longer available. Please review your cart.',
+        code: 'PRODUCTS_UNAVAILABLE' 
+      }, 400);
+    }
+    
+    if (error.message.includes('Insufficient stock')) {
+      return fail(res, { 
+        message: error.message,
+        code: 'INSUFFICIENT_STOCK' 
+      }, 400);
+    }
+    
+    throw error;
+  }
+}
 
 // List user's orders
-export const listMine = asyncHandler(async (req: Request, res: Response) => {
+export async function listMine(req: any, res: any) {
   const userId = req.user?._id?.toString();
   
   if (!userId) {
@@ -132,10 +194,10 @@ export const listMine = asyncHandler(async (req: Request, res: Response) => {
   } catch (error) {
     throw error;
   }
-});
+}
 
 // Get specific order by ID
-export const getOrder = asyncHandler(async (req: Request, res: Response) => {
+export const getOrder = asyncHandler(async (req: any, res: any) => {
   const userId = req.user?._id?.toString();
   const { orderId } = req.params;
   
@@ -176,7 +238,7 @@ export const getOrder = asyncHandler(async (req: Request, res: Response) => {
 });
 
 // Cancel order
-export const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
+export const cancelOrder = asyncHandler(async (req: any, res: any) => {
   const userId = req.user?._id?.toString();
   const { orderId } = req.params;
   const { reason } = req.body;

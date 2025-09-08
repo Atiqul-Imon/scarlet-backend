@@ -5,16 +5,19 @@ import * as controller from './controller.js';
 
 export const router = Router();
 
-// Create new order from cart
-router.post('/create', requireAuth, controller.create);
+// Create new order from cart (authenticated user)
+router.post('/create', requireAuth, asyncHandler(controller.create));
+
+// Create guest order from cart (no authentication required)
+router.post('/guest/create', asyncHandler(controller.createGuestOrder));
 
 // Get user's orders
-router.get('/', requireAuth, controller.listMine);
+router.get('/', requireAuth, asyncHandler(controller.listMine));
 
 // Get specific order by ID
-router.get('/:orderId', requireAuth, controller.getOrder);
+router.get('/:orderId', requireAuth, asyncHandler(controller.getOrder));
 
 // Cancel order
-router.post('/:orderId/cancel', requireAuth, controller.cancelOrder);
+router.post('/:orderId/cancel', requireAuth, asyncHandler(controller.cancelOrder));
 
 

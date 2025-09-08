@@ -20,6 +20,7 @@ import { router as addressRoutes } from './modules/addresses/routes.js';
 import { router as wishlistRoutes } from './modules/wishlist/routes.js';
 import { router as inventoryRoutes } from './modules/inventory/routes.js';
 import { router as analyticsRoutes } from './modules/analytics/routes.js';
+import { router as cartAbandonmentRoutes } from './modules/cart-abandonment/routes.js';
 
 export function createApp() {
   const app = express();
@@ -53,7 +54,7 @@ export function createApp() {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Session-ID');
     res.header('Access-Control-Expose-Headers', 'X-Total-Count, X-Page-Count');
     
     // Handle preflight requests
@@ -72,7 +73,7 @@ export function createApp() {
       : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Session-ID'],
     exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
     optionsSuccessStatus: 200, // For legacy browser support
   }));
@@ -132,6 +133,7 @@ export function createApp() {
   app.use('/api/wishlist', wishlistRoutes);
   app.use('/api/inventory', inventoryRoutes);
   app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/cart-abandonment', cartAbandonmentRoutes);
 
   app.use((req, res) => res.status(404).json({ success: false, error: { message: 'Not Found' } }));
   app.use((err: any, req: any, res: any, _next: any) => { try { req.log?.error?.(err); } catch {} res.status(500).json({ success: false, error: { message: 'Internal Server Error' } }); });

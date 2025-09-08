@@ -34,7 +34,8 @@ export interface PaymentInfo {
 export interface Order {
   _id?: string;
   orderNumber: string;
-  userId: string;
+  userId?: string; // Made optional for guest orders
+  guestId?: string; // For guest orders
   items: OrderItem[];
   subtotal: number;
   shipping: number;
@@ -49,6 +50,7 @@ export interface Order {
   trackingNumber?: string;
   estimatedDelivery?: string;
   deliveredAt?: string;
+  isGuestOrder?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
