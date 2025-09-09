@@ -15,9 +15,9 @@ router.post('/guest/create', asyncHandler(controller.createGuestOrder));
 router.get('/', requireAuth, asyncHandler(controller.listMine));
 
 // Get specific order by ID
-router.get('/:orderId', requireAuth, asyncHandler(controller.getOrder));
+router.get('/:orderId', requireAuth, controller.getOrder);
 
 // Cancel order
-router.post('/:orderId/cancel', requireAuth, asyncHandler(controller.cancelOrder));
+router.post('/:orderId/cancel', requireAuth, controller.cancelOrder);
 
 
