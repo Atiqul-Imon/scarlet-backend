@@ -314,6 +314,44 @@ export const getOrders = asyncHandler(async (req: Request, res: Response) => {
   ok(res, result);
 });
 
+export const getOrderById = asyncHandler(async (req: Request, res: Response) => {
+  const { orderId } = req.params;
+  
+  if (!orderId) {
+    return fail(res, { 
+      message: 'Order ID is required',
+      code: 'ORDER_ID_REQUIRED' 
+    }, 400);
+  }
+  
+  try {
+    const order = await presenter.getOrderById(orderId);
+    
+    // Log admin activity
+    if (req.user) {
+      await presenter.logActivity(
+        req.user._id!.toString(),
+        req.user.email || req.user.phone || 'unknown',
+        'VIEW_ORDER_DETAILS',
+        { orderId },
+        req.ip,
+        req.headers['user-agent']
+      );
+    }
+    
+    ok(res, order);
+  } catch (error: any) {
+    if (error.message.includes('not found')) {
+      return fail(res, { 
+        message: 'Order not found',
+        code: 'ORDER_NOT_FOUND' 
+      }, 404);
+    }
+    
+    throw error;
+  }
+});
+
 export const updateOrderStatus = asyncHandler(async (req: Request, res: Response) => {
   const { orderId } = req.params;
   const { status, trackingNumber } = req.body;

@@ -25,6 +25,7 @@ router.delete('/products/:productId', requireAdmin, auditLog('DELETE_PRODUCT'), 
 
 // Order Management - admin and staff
 router.get('/orders', requireAdminOrStaff, auditLog('VIEW_ORDERS'), controller.getOrders);
+router.get('/orders/:orderId', requireAdminOrStaff, auditLog('VIEW_ORDER_DETAILS'), controller.getOrderById);
 router.patch('/orders/:orderId/status', requireAdminOrStaff, auditLog('UPDATE_ORDER_STATUS'), controller.updateOrderStatus);
 
 // Analytics - admin and staff

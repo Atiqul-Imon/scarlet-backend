@@ -8,6 +8,7 @@ import type {
   SalesAnalytics,
   UserAnalytics 
 } from './model.js';
+import type { Order } from '../orders/model.js';
 import { AppError } from '../../core/errors/AppError.js';
 import { logger } from '../../core/logging/logger.js';
 
@@ -238,6 +239,19 @@ export async function getOrders(filters: AdminOrderFilters = {}, page: number = 
   } catch (error) {
     logger.error({ error, filters }, 'Failed to get orders');
     throw new AppError('Failed to retrieve orders', { code: 'ORDER_FETCH_ERROR' });
+  }
+}
+
+export async function getOrderById(orderId: string): Promise<Order> {
+  try {
+    const order = await repo.getOrderById(orderId);
+    if (!order) {
+      throw new AppError('Order not found', { code: 'ORDER_NOT_FOUND' });
+    }
+    return order;
+  } catch (error) {
+    logger.error({ error, orderId }, 'Failed to get order by ID');
+    throw new AppError('Failed to retrieve order', { code: 'ORDER_FETCH_ERROR' });
   }
 }
 

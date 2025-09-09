@@ -296,6 +296,12 @@ export async function getOrders(
   return { orders: orders as unknown as Order[], total };
 }
 
+export async function getOrderById(orderId: string): Promise<Order | null> {
+  const db = await getDb();
+  return db.collection<Order>('orders')
+    .findOne({ _id: new ObjectId(orderId) } as any);
+}
+
 export async function updateOrderStatus(
   orderId: string, 
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded',
