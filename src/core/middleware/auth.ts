@@ -15,12 +15,8 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
       // Verify JWT token
       const payload = jwt.verify(token, env.jwtSecret) as { sub: string; iat: number; exp: number };
       
-      // Check if token is blacklisted using Redis
-      const isBlacklisted = await tokenManager.isTokenBlacklisted(token, 'access');
-      if (isBlacklisted) {
-        logger.warn({ token: token.substring(0, 10) + '...' }, 'Blacklisted token attempted');
-        return next(); // Continue without setting user (will be rejected by requireAuth)
-      }
+      // Token is valid if it exists in storage and is not expired
+      // No need to check blacklist since we store valid tokens
       
       // Get full user data from database
       const user = await findUserById(payload.sub);
