@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireAdmin, requireAdminOrStaff, auditLog } from '../../core/middleware/auth.js';
+import { rateLimits } from '../../core/middleware/rateLimiting.js';
 
 import * as controller from './controller.js';
 
@@ -9,8 +10,8 @@ export const router = Router();
 router.use(requireAuth);
 
 // Payment creation and verification
-router.post('/create', auditLog('CREATE_PAYMENT'), controller.createPayment);
-router.post('/verify', auditLog('VERIFY_PAYMENT'), controller.verifyPayment);
+router.post('/create', rateLimits.payment, auditLog('CREATE_PAYMENT'), controller.createPayment);
+router.post('/verify', rateLimits.payment, auditLog('VERIFY_PAYMENT'), controller.verifyPayment);
 
 // Payment status and history
 router.get('/status/:paymentId', auditLog('VIEW_PAYMENT_STATUS'), controller.getPaymentStatus);

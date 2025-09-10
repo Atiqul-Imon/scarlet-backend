@@ -71,7 +71,26 @@ export const env = {
   rocketSecretKey: process.env.ROCKET_SECRET_KEY,
   rocketSandbox: process.env.ROCKET_SANDBOX || 'true',
   rocketBaseUrl: process.env.ROCKET_BASE_URL,
-  rocketCallbackUrl: process.env.ROCKET_CALLBACK_URL
+  rocketCallbackUrl: process.env.ROCKET_CALLBACK_URL,
+  
+  // Redis Configuration
+  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  redisPassword: process.env.REDIS_PASSWORD,
+  redisDb: requireNumber('REDIS_DB', 0),
+  
+  // Security Configuration
+  sessionSecret: process.env.SESSION_SECRET || requireString('JWT_SECRET', 'change-me-in-prod'),
+  encryptionKey: process.env.ENCRYPTION_KEY || requireString('JWT_SECRET', 'change-me-in-prod'),
+  
+  // Rate Limiting Configuration
+  rateLimitWindowMs: requireNumber('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000), // 15 minutes
+  rateLimitMaxRequests: requireNumber('RATE_LIMIT_MAX_REQUESTS', 100),
+  
+  // Token Configuration
+  accessTokenExpiry: process.env.ACCESS_TOKEN_EXPIRY || '15m',
+  refreshTokenExpiry: process.env.REFRESH_TOKEN_EXPIRY || '7d',
+  passwordResetTokenExpiry: process.env.PASSWORD_RESET_TOKEN_EXPIRY || '1h',
+  emailVerificationTokenExpiry: process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || '72h'
 };
 
 export { isProduction };

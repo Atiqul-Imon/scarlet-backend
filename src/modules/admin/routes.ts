@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { requireAuth, requireAdmin, requireAdminOrStaff, auditLog } from '../../core/middleware/auth.js';
+import { rateLimits } from '../../core/middleware/rateLimiting.js';
 import * as controller from './controller.js';
 
 export const router = Router();
 
-// All admin routes require authentication
+// All admin routes require authentication and rate limiting
 router.use(requireAuth);
+router.use(rateLimits.admin);
 
 // Dashboard - accessible by admin and staff
 router.get('/dashboard/stats', requireAdminOrStaff, controller.getDashboardStats);

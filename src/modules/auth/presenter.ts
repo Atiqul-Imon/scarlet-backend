@@ -12,12 +12,10 @@ import * as repo from './repository.js';
 import { env } from '../../config/env.js';
 import { AppError } from '../../core/errors/AppError.js';
 import { logger } from '../../core/logging/logger.js';
+import { tokenManager } from '../../core/cache/tokenManager.js';
 
-// Token blacklist for logout (in production, use Redis)
+// Legacy token blacklist (deprecated - use tokenManager instead)
 export const tokenBlacklist = new Set<string>();
-
-// Password reset tokens (in production, use Redis with TTL)
-const resetTokens = new Map<string, { userId: string; expiresAt: Date }>();
 
 // Helper functions
 const validateEmail = (email: string): boolean => {
@@ -44,7 +42,7 @@ const normalizeIdentifier = (identifier: string): string => {
   return identifier;
 };
 
-const generateTokens = (user: User, rememberMe = false): AuthTokens => {
+const generateTokens = async (user: User, rememberMe = false, ip?: string): Promise<AuthTokens> => {
   const accessTokenExpiry = '15m';
   const refreshTokenExpiry = rememberMe ? '30d' : '7d';
   const expiresIn = 15 * 60; // 15 minutes in seconds
@@ -69,6 +67,25 @@ const generateTokens = (user: User, rememberMe = false): AuthTokens => {
     env.jwtSecret, 
     { expiresIn: refreshTokenExpiry }
   );
+
+  // Store tokens in Redis for proper management
+  try {
+    await tokenManager.storeToken(accessToken, {
+      userId: user._id!,
+      type: 'access',
+      metadata: { ip, userAgent: 'unknown' }
+    }, expiresIn);
+
+    const refreshExpiresIn = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60; // Convert to seconds
+    await tokenManager.storeToken(refreshToken, {
+      userId: user._id!,
+      type: 'refresh',
+      metadata: { ip, userAgent: 'unknown' }
+    }, refreshExpiresIn);
+  } catch (error) {
+    logger.error({ error }, 'Failed to store tokens in Redis');
+    // Continue with token generation even if Redis fails
+  }
 
   return {
     accessToken,
@@ -133,7 +150,7 @@ export async function registerUser(input: RegisterRequest): Promise<AuthResponse
     const createdUser = await repo.insertUser(newUser);
 
     // Generate tokens
-    const tokens = generateTokens(createdUser);
+    const tokens = await generateTokens(createdUser);
 
     logger.info({ userId: createdUser._id }, 'User registered successfully');
 
@@ -165,7 +182,7 @@ export async function loginUser(input: LoginRequest): Promise<AuthResponse> {
     }
 
     // Generate tokens
-    const tokens = generateTokens(user, input.rememberMe);
+    const tokens = await generateTokens(user, input.rememberMe);
 
     // Update last login
     await repo.updateUserById(user._id!, { 
@@ -215,7 +232,7 @@ export async function refreshUserToken(refreshToken: string): Promise<AuthTokens
     }
 
     // Generate new tokens
-    const tokens = generateTokens(user);
+    const tokens = await generateTokens(user);
 
     // Blacklist old refresh token
     tokenBlacklist.add(refreshToken);
@@ -235,7 +252,10 @@ export async function logoutUser(accessToken: string): Promise<void> {
     // Decode token to get user info (don't verify as it might be expired)
     const decoded = jwt.decode(accessToken) as any;
     
-    // Add token to blacklist
+    // Revoke token using token manager
+    await tokenManager.revokeToken(accessToken, 'access');
+    
+    // Also add to legacy blacklist for backward compatibility
     tokenBlacklist.add(accessToken);
     
     if (decoded?.sub) {
@@ -288,7 +308,7 @@ export async function changeUserPassword(
 }
 
 // Initiate password reset
-export async function initiatePasswordReset(identifier: string): Promise<void> {
+export async function initiatePasswordReset(identifier: string, ip?: string): Promise<void> {
   try {
     const normalizedIdentifier = normalizeIdentifier(identifier);
     
@@ -307,22 +327,21 @@ export async function initiatePasswordReset(identifier: string): Promise<void> {
       return;
     }
 
-    // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    // Generate secure reset token using token manager
+    const { token: resetToken, expiresAt } = await tokenManager.generatePasswordResetToken(
+      user._id!,
+      normalizedIdentifier,
+      1 // 1 hour expiration
+    );
 
-    // Store reset token
-    resetTokens.set(resetToken, {
-      userId: user._id!,
-      expiresAt
-    });
-
-    // TODO: Send reset email/SMS
+    // TODO: Send reset email/SMS with the token
     // For now, just log the token (remove in production)
     logger.info({ 
       userId: user._id, 
       resetToken, 
-      identifier: normalizedIdentifier 
+      identifier: normalizedIdentifier,
+      expiresAt: new Date(expiresAt).toISOString(),
+      ip
     }, 'Password reset token generated');
 
   } catch (error) {
@@ -334,11 +353,10 @@ export async function initiatePasswordReset(identifier: string): Promise<void> {
 // Reset password
 export async function resetUserPassword(token: string, newPassword: string): Promise<void> {
   try {
-    // Find reset token
-    const resetData = resetTokens.get(token);
+    // Get reset token from token manager
+    const resetData = await tokenManager.getToken(token, 'password_reset');
     
-    if (!resetData || resetData.expiresAt < new Date()) {
-      resetTokens.delete(token); // Clean up expired token
+    if (!resetData) {
       throw new AppError('Invalid or expired reset token', { 
         status: 400, 
         code: 'INVALID_RESET_TOKEN' 
@@ -348,7 +366,8 @@ export async function resetUserPassword(token: string, newPassword: string): Pro
     // Find user
     const user = await repo.findUserById(resetData.userId);
     if (!user) {
-      resetTokens.delete(token);
+      // Revoke token if user not found
+      await tokenManager.revokeToken(token, 'password_reset');
       throw new AppError('User not found', { 
         status: 404, 
         code: 'USER_NOT_FOUND' 
@@ -364,8 +383,12 @@ export async function resetUserPassword(token: string, newPassword: string): Pro
       updatedAt: new Date().toISOString()
     });
 
+    // Revoke all user tokens for security
+    await tokenManager.revokeAllUserTokens(user._id!, 'access');
+    await tokenManager.revokeAllUserTokens(user._id!, 'refresh');
+
     // Remove reset token
-    resetTokens.delete(token);
+    await tokenManager.revokeToken(token, 'password_reset');
 
     logger.info({ userId: user._id }, 'Password reset successfully');
   } catch (error) {

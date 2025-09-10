@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { ok, fail } from '../../core/http/response.js';
 import { checkMongoHealth, getConnectionStats } from '../../core/db/mongoClient.js';
+import { redisClient } from '../../core/cache/redisClient.js';
+import { tokenManager } from '../../core/cache/tokenManager.js';
 import { env } from '../../config/env.js';
 
 export const router = Router();
@@ -16,14 +18,16 @@ router.get('/', (_req, res) => {
   });
 });
 
-// Detailed health check with MongoDB Atlas status
+// Detailed health check with MongoDB Atlas and Redis status
 router.get('/detailed', async (_req, res) => {
   try {
     const mongoHealthy = await checkMongoHealth();
     const mongoStats = await getConnectionStats();
+    const redisHealth = await redisClient.healthCheck();
+    const tokenStats = await tokenManager.getTokenStats();
     
     const health = {
-      status: mongoHealthy ? 'healthy' : 'unhealthy',
+      status: mongoHealthy && redisHealth.status === 'healthy' ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       environment: env.nodeEnv,
@@ -37,6 +41,15 @@ router.get('/detailed', async (_req, res) => {
           status: mongoHealthy ? 'healthy' : 'unhealthy',
           type: 'MongoDB Atlas',
           stats: mongoStats
+        },
+        redis: {
+          status: redisHealth.status,
+          latency: redisHealth.latency,
+          available: redisHealth.status === 'healthy'
+        },
+        tokens: {
+          status: 'healthy',
+          stats: tokenStats
         }
       },
       system: {
@@ -47,10 +60,10 @@ router.get('/detailed', async (_req, res) => {
       }
     };
 
-    if (mongoHealthy) {
+    if (mongoHealthy && redisHealth.status === 'healthy') {
       ok(res, health);
     } else {
-      fail(res, { message: 'Service unhealthy - MongoDB Atlas connection failed' }, 503);
+      fail(res, { message: 'Service unhealthy - Database or Redis connection failed' }, 503);
     }
   } catch (error) {
     fail(res, { 
@@ -83,6 +96,34 @@ router.get('/database', async (_req, res) => {
     fail(res, { 
       message: 'Database health check failed',
       code: 'DATABASE_CHECK_ERROR'
+    }, 500);
+  }
+});
+
+// Redis specific health check
+router.get('/redis', async (_req, res) => {
+  try {
+    const redisHealth = await redisClient.healthCheck();
+    const tokenStats = await tokenManager.getTokenStats();
+    
+    if (redisHealth.status === 'healthy') {
+      ok(res, {
+        status: 'healthy',
+        type: 'Redis',
+        timestamp: new Date().toISOString(),
+        latency: redisHealth.latency,
+        tokenStats
+      });
+    } else {
+      fail(res, { 
+        message: 'Redis connection failed',
+        code: 'REDIS_UNHEALTHY'
+      }, 503);
+    }
+  } catch (error) {
+    fail(res, { 
+      message: 'Redis health check failed',
+      code: 'REDIS_CHECK_ERROR'
     }, 500);
   }
 });
