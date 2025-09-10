@@ -36,5 +36,13 @@ router.get('/analytics/users', requireAdminOrStaff, auditLog('VIEW_USER_ANALYTIC
 router.get('/settings', requireAdmin, auditLog('VIEW_SYSTEM_SETTINGS'), controller.getSystemSettings);
 router.patch('/settings', requireAdmin, auditLog('UPDATE_SYSTEM_SETTINGS'), controller.updateSystemSettings);
 
+// Category Management - admin and staff
+router.get('/categories', requireAdminOrStaff, auditLog('VIEW_CATEGORIES'), controller.getCategories);
+router.get('/categories/:categoryId', requireAdminOrStaff, auditLog('VIEW_CATEGORY'), controller.getCategory);
+router.post('/categories', requireAdminOrStaff, auditLog('CREATE_CATEGORY'), controller.createCategory);
+router.put('/categories/:categoryId', requireAdminOrStaff, auditLog('UPDATE_CATEGORY'), controller.updateCategory);
+router.patch('/categories/:categoryId/status', requireAdminOrStaff, auditLog('UPDATE_CATEGORY_STATUS'), controller.updateCategoryStatus);
+router.delete('/categories/:categoryId', requireAdmin, auditLog('DELETE_CATEGORY'), controller.deleteCategory);
+
 // Activity Logs - admin only
 router.get('/logs/activity', requireAdmin, controller.getActivityLogs);

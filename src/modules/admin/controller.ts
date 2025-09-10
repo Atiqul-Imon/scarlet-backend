@@ -463,6 +463,161 @@ export const updateSystemSettings = asyncHandler(async (req: Request, res: Respo
   ok(res, { message: 'System settings updated successfully' });
 });
 
+// Category Management
+export const getCategories = asyncHandler(async (req: Request, res: Response) => {
+  const { 
+    isActive, 
+    search, 
+    page = 1, 
+    limit = 50 
+  } = req.query;
+  
+  const filters = {
+    isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+    search: search as string
+  };
+  
+  const result = await presenter.getCategories(filters, Number(page), Number(limit));
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'VIEW_CATEGORIES',
+      { filters, page, limit },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  ok(res, result);
+});
+
+export const getCategory = asyncHandler(async (req: Request, res: Response) => {
+  const { categoryId } = req.params;
+  
+  const category = await presenter.getCategory(categoryId);
+  
+  if (!category) {
+    return fail(res, { message: 'Category not found', code: 'CATEGORY_NOT_FOUND' }, 404);
+  }
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'VIEW_CATEGORY',
+      { categoryId },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  ok(res, category);
+});
+
+export const createCategory = asyncHandler(async (req: Request, res: Response) => {
+  const categoryData = req.body;
+  
+  // Validate required fields
+  if (!categoryData.name || !categoryData.slug) {
+    return fail(res, { message: 'Missing required fields: name and slug are required', code: 'MISSING_REQUIRED_FIELDS' }, 400);
+  }
+  
+  const category = await presenter.createCategory(categoryData);
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'CREATE_CATEGORY',
+      { categoryId: category._id, categoryName: category.name },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  created(res, category);
+});
+
+export const updateCategory = asyncHandler(async (req: Request, res: Response) => {
+  const { categoryId } = req.params;
+  const categoryData = req.body;
+  
+  // Validate required fields
+  if (!categoryData.name || !categoryData.slug) {
+    return fail(res, { message: 'Missing required fields: name and slug are required', code: 'MISSING_REQUIRED_FIELDS' }, 400);
+  }
+  
+  const category = await presenter.updateCategory(categoryId, categoryData);
+  
+  if (!category) {
+    return fail(res, { message: 'Category not found', code: 'CATEGORY_NOT_FOUND' }, 404);
+  }
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'UPDATE_CATEGORY',
+      { categoryId, categoryName: category.name },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  ok(res, category);
+});
+
+export const updateCategoryStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { categoryId } = req.params;
+  const { isActive } = req.body;
+  
+  if (typeof isActive !== 'boolean') {
+    return fail(res, { message: 'Invalid status value', code: 'INVALID_STATUS' }, 400);
+  }
+  
+  await presenter.updateCategoryStatus(categoryId, isActive);
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'UPDATE_CATEGORY_STATUS',
+      { categoryId, isActive },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  ok(res, { message: 'Category status updated successfully' });
+});
+
+export const deleteCategory = asyncHandler(async (req: Request, res: Response) => {
+  const { categoryId } = req.params;
+  
+  await presenter.deleteCategory(categoryId);
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'DELETE_CATEGORY',
+      { categoryId },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  ok(res, { message: 'Category deleted successfully' });
+});
+
 // Activity Logs
 export const getActivityLogs = asyncHandler(async (req: Request, res: Response) => {
   const { page = 1, limit = 50 } = req.query;

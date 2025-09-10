@@ -415,3 +415,101 @@ export async function getActivityLogs(page: number = 1, limit: number = 50) {
     throw new AppError('Failed to retrieve activity logs', { code: 'LOGS_ERROR' });
   }
 }
+
+// Category Management
+export async function getCategories(filters: any = {}, page: number = 1, limit: number = 50) {
+  try {
+    const result = await repo.getCategories(filters, page, limit);
+    return {
+      categories: result.categories,
+      total: result.total,
+      page,
+      totalPages: Math.ceil(result.total / limit)
+    };
+  } catch (error) {
+    logger.error({ error, filters, page, limit }, 'Failed to get categories');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to get categories', { code: 'CATEGORIES_FETCH_ERROR' });
+  }
+}
+
+export async function getCategory(categoryId: string) {
+  try {
+    const category = await repo.getCategory(categoryId);
+    return category;
+  } catch (error) {
+    logger.error({ error, categoryId }, 'Failed to get category');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to get category', { code: 'CATEGORY_FETCH_ERROR' });
+  }
+}
+
+export async function createCategory(categoryData: any) {
+  try {
+    // Transform frontend data to match backend model
+    const category = {
+      name: categoryData.name,
+      slug: categoryData.slug,
+      description: categoryData.description || '',
+      parentId: categoryData.parentId || null,
+      image: categoryData.image || '',
+      isActive: categoryData.isActive !== false,
+      showInHomepage: categoryData.showInHomepage || false,
+      sortOrder: categoryData.sortOrder || 0,
+      icon: categoryData.icon || ''
+    };
+
+    const createdCategory = await repo.createCategory(category);
+    return createdCategory;
+  } catch (error) {
+    logger.error({ error, categoryData }, 'Failed to create category');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to create category', { code: 'CATEGORY_CREATE_ERROR' });
+  }
+}
+
+export async function updateCategory(categoryId: string, categoryData: any) {
+  try {
+    // Transform frontend data to match backend model
+    const category = {
+      name: categoryData.name,
+      slug: categoryData.slug,
+      description: categoryData.description || '',
+      parentId: categoryData.parentId || null,
+      image: categoryData.image || '',
+      isActive: categoryData.isActive !== false,
+      showInHomepage: categoryData.showInHomepage || false,
+      sortOrder: categoryData.sortOrder || 0,
+      icon: categoryData.icon || ''
+    };
+
+    const updatedCategory = await repo.updateCategory(categoryId, category);
+    return updatedCategory;
+  } catch (error) {
+    logger.error({ error, categoryId, categoryData }, 'Failed to update category');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to update category', { code: 'CATEGORY_UPDATE_ERROR' });
+  }
+}
+
+export async function updateCategoryStatus(categoryId: string, isActive: boolean) {
+  try {
+    await repo.updateCategoryStatus(categoryId, isActive);
+    return { success: true };
+  } catch (error) {
+    logger.error({ error, categoryId, isActive }, 'Failed to update category status');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to update category status', { code: 'CATEGORY_STATUS_UPDATE_ERROR' });
+  }
+}
+
+export async function deleteCategory(categoryId: string) {
+  try {
+    await repo.deleteCategory(categoryId);
+    return { success: true };
+  } catch (error) {
+    logger.error({ error, categoryId }, 'Failed to delete category');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to delete category', { code: 'CATEGORY_DELETE_ERROR' });
+  }
+}

@@ -7,6 +7,7 @@ import type {
   AdminOrderFilters,
   SystemSettings 
 } from './model.js';
+import type { Category } from '../catalog/model.js';
 import type { User } from '../auth/model.js';
 import type { Product } from '../catalog/model.js';
 import type { Order } from '../orders/model.js';
@@ -389,4 +390,89 @@ export async function updateSystemSettings(settings: Partial<SystemSettings>): P
     { upsert: true }
   );
   return result.acknowledged;
+}
+
+// Category Management
+export async function getCategories(
+  filters: any = {}, 
+  page: number = 1, 
+  limit: number = 50
+): Promise<{ categories: Category[]; total: number }> {
+  const db = await getDb();
+  const skip = (page - 1) * limit;
+  
+  // Build query
+  const query: any = {};
+  if (filters.isActive !== undefined) query.isActive = filters.isActive;
+  if (filters.search) {
+    query.$or = [
+      { name: { $regex: filters.search, $options: 'i' } },
+      { description: { $regex: filters.search, $options: 'i' } }
+    ];
+  }
+  
+  const [categories, total] = await Promise.all([
+    db.collection('categories')
+      .find(query)
+      .sort({ sortOrder: 1, name: 1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray(),
+    db.collection('categories').countDocuments(query)
+  ]);
+  
+  return { categories: categories as unknown as Category[], total };
+}
+
+export async function getCategory(categoryId: string): Promise<Category | null> {
+  const db = await getDb();
+  const category = await db.collection('categories').findOne({ _id: new ObjectId(categoryId) });
+  return category as Category | null;
+}
+
+export async function createCategory(categoryData: any): Promise<Category> {
+  const db = await getDb();
+  const now = new Date();
+  
+  const category = {
+    ...categoryData,
+    createdAt: now,
+    updatedAt: now
+  };
+  
+  const result = await db.collection('categories').insertOne(category);
+  return { ...category, _id: result.insertedId } as Category;
+}
+
+export async function updateCategory(categoryId: string, categoryData: any): Promise<Category | null> {
+  const db = await getDb();
+  const now = new Date();
+  
+  const updateData = {
+    ...categoryData,
+    updatedAt: now
+  };
+  
+  const result = await db.collection('categories').findOneAndUpdate(
+    { _id: new ObjectId(categoryId) },
+    { $set: updateData },
+    { returnDocument: 'after' }
+  );
+  
+  return result as Category | null;
+}
+
+export async function updateCategoryStatus(categoryId: string, isActive: boolean): Promise<boolean> {
+  const db = await getDb();
+  const result = await db.collection('categories').updateOne(
+    { _id: new ObjectId(categoryId) },
+    { $set: { isActive, updatedAt: new Date() } }
+  );
+  return result.modifiedCount > 0;
+}
+
+export async function deleteCategory(categoryId: string): Promise<boolean> {
+  const db = await getDb();
+  const result = await db.collection('categories').deleteOne({ _id: new ObjectId(categoryId) });
+  return result.deletedCount > 0;
 }
