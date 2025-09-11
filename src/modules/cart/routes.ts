@@ -7,12 +7,14 @@ export const router = Router();
 
 // Authenticated user cart routes
 router.get('/', requireAuth, asyncHandler(controller.getCart));
-router.post('/items', requireAuth, asyncHandler(controller.setItem));
+router.post('/items', requireAuth, asyncHandler(controller.addItem));
+router.put('/items', requireAuth, asyncHandler(controller.updateItem));
 router.delete('/items/:productId', requireAuth, asyncHandler(controller.removeItem));
 
 // Guest cart routes (no authentication required)
 router.get('/guest', asyncHandler(controller.getGuestCart));
-router.post('/guest/items', asyncHandler(controller.setGuestItem));
+router.post('/guest/items', asyncHandler(controller.addGuestItem));
+router.put('/guest/items', asyncHandler(controller.updateGuestItem));
 router.delete('/guest/items/:productId', asyncHandler(controller.removeGuestItem));
 
 // Merge guest cart to user cart (requires authentication)
