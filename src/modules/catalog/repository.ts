@@ -69,3 +69,45 @@ export async function clearProducts(): Promise<void> {
   const db = await getDb();
   await db.collection('products').deleteMany({});
 }
+
+export async function getCategoryById(id: string): Promise<Category | null> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  return db.collection<Category>('categories').findOne({ _id: new ObjectId(id) } as any);
+}
+
+export async function createCategory(categoryData: any): Promise<Category> {
+  const db = await getDb();
+  const category = {
+    ...categoryData,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  const result = await db.collection<Category>('categories').insertOne(category);
+  return { ...category, _id: result.insertedId.toString() };
+}
+
+export async function updateCategory(id: string, categoryData: any): Promise<Category> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  
+  const updateData = {
+    ...categoryData,
+    updatedAt: new Date().toISOString()
+  };
+  
+  await db.collection<Category>('categories').updateOne(
+    { _id: new ObjectId(id) } as any,
+    { $set: updateData }
+  );
+  
+  const updatedCategory = await db.collection<Category>('categories').findOne({ _id: new ObjectId(id) } as any);
+  return updatedCategory!;
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  await db.collection<Category>('categories').deleteOne({ _id: new ObjectId(id) } as any);
+}

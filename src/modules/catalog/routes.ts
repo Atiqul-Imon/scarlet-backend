@@ -7,6 +7,9 @@ export const router = Router();
 
 // Categories
 router.get('/categories', asyncHandler(controller.categories));
+router.post('/categories', asyncHandler(controller.createCategory));
+router.put('/categories/:id', asyncHandler(controller.updateCategory));
+router.delete('/categories/:id', asyncHandler(controller.deleteCategory));
 
 // Products
 router.get('/products', asyncHandler(controller.products));

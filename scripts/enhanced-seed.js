@@ -105,6 +105,108 @@ const categories = [
     isActive: true,
     parentCategory: 'hair-care',
     sortOrder: 12
+  },
+  {
+    name: 'Face Masks',
+    slug: 'face-masks',
+    description: 'Hydrating and purifying face masks for all skin types',
+    isActive: true,
+    parentCategory: 'skincare',
+    sortOrder: 13,
+    icon: '🎭'
+  },
+  {
+    name: 'Eye Care',
+    slug: 'eye-care',
+    description: 'Specialized eye creams and treatments',
+    isActive: true,
+    parentCategory: 'skincare',
+    sortOrder: 14,
+    icon: '👁️'
+  },
+  {
+    name: 'Acne Treatment',
+    slug: 'acne-treatment',
+    description: 'Products to treat and prevent acne breakouts',
+    isActive: true,
+    parentCategory: 'skincare',
+    sortOrder: 15,
+    icon: '🔬'
+  },
+  {
+    name: 'Anti-Aging',
+    slug: 'anti-aging',
+    description: 'Anti-aging serums and creams for mature skin',
+    isActive: true,
+    parentCategory: 'skincare',
+    sortOrder: 16,
+    icon: '✨'
+  },
+  {
+    name: 'Sensitive Skin',
+    slug: 'sensitive-skin',
+    description: 'Gentle products for sensitive and reactive skin',
+    isActive: true,
+    parentCategory: 'skincare',
+    sortOrder: 17,
+    icon: '🤲'
+  },
+  {
+    name: 'Hair Styling',
+    slug: 'hair-styling',
+    description: 'Hair styling products and tools',
+    isActive: true,
+    parentCategory: 'hair-care',
+    sortOrder: 18,
+    icon: '💇‍♀️'
+  },
+  {
+    name: 'Nail Care',
+    slug: 'nail-care',
+    description: 'Nail polish, treatments, and care products',
+    isActive: true,
+    sortOrder: 19,
+    icon: '💅'
+  },
+  {
+    name: 'Fragrance',
+    slug: 'fragrance',
+    description: 'Perfumes, body sprays, and scented products',
+    isActive: true,
+    sortOrder: 20,
+    icon: '🌸'
+  },
+  {
+    name: 'Tools & Brushes',
+    slug: 'tools-brushes',
+    description: 'Makeup brushes, skincare tools, and applicators',
+    isActive: true,
+    sortOrder: 21,
+    icon: '🖌️'
+  },
+  {
+    name: 'Men\'s Grooming',
+    slug: 'mens-grooming',
+    description: 'Specialized grooming products for men',
+    isActive: true,
+    sortOrder: 22,
+    icon: '👨'
+  },
+  {
+    name: 'Travel Size',
+    slug: 'travel-size',
+    description: 'Travel-friendly mini and sample products',
+    isActive: true,
+    sortOrder: 23,
+    icon: '✈️'
+  },
+  {
+    name: 'Organic & Natural',
+    slug: 'organic-natural',
+    description: 'Organic, natural, and eco-friendly beauty products',
+    isActive: true,
+    sortOrder: 24,
+    icon: '🌿'
   }
 ];
 

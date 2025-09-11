@@ -50,3 +50,37 @@ export async function getProductsByCategory(categoryId: string) {
   
   return repo.getProductsByCategory(categoryId);
 }
+
+export async function createCategory(categoryData: any) {
+  if (!categoryData.name || !categoryData.slug) {
+    throw new AppError('Category name and slug are required', { status: 400 });
+  }
+  
+  return repo.createCategory(categoryData);
+}
+
+export async function updateCategory(id: string, categoryData: any) {
+  if (!id) {
+    throw new AppError('Category ID is required', { status: 400 });
+  }
+  
+  const existingCategory = await repo.getCategoryById(id);
+  if (!existingCategory) {
+    throw new AppError('Category not found', { status: 404 });
+  }
+  
+  return repo.updateCategory(id, categoryData);
+}
+
+export async function deleteCategory(id: string) {
+  if (!id) {
+    throw new AppError('Category ID is required', { status: 400 });
+  }
+  
+  const existingCategory = await repo.getCategoryById(id);
+  if (!existingCategory) {
+    throw new AppError('Category not found', { status: 404 });
+  }
+  
+  await repo.deleteCategory(id);
+}

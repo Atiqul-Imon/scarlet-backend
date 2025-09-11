@@ -35,3 +35,20 @@ export async function getProductsByCategory(req: Request, res: Response) {
   const result = await presenter.getProductsByCategory(categoryId);
   ok(res, result);
 }
+
+export async function createCategory(req: Request, res: Response) {
+  const result = await presenter.createCategory(req.body);
+  ok(res, result);
+}
+
+export async function updateCategory(req: Request, res: Response) {
+  const { id } = req.params;
+  const result = await presenter.updateCategory(id, req.body);
+  ok(res, result);
+}
+
+export async function deleteCategory(req: Request, res: Response) {
+  const { id } = req.params;
+  await presenter.deleteCategory(id);
+  ok(res, { message: 'Category deleted successfully' });
+}
