@@ -69,7 +69,7 @@ export function createApp() {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Session-ID');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Session-ID, X-Mobile-Request, Cache-Control, Pragma');
     res.header('Access-Control-Expose-Headers', 'X-Total-Count, X-Page-Count');
     
     // Handle preflight requests
@@ -88,7 +88,7 @@ export function createApp() {
       : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Session-ID'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Session-ID', 'X-Mobile-Request', 'Cache-Control', 'Pragma'],
     exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
     optionsSuccessStatus: 200, // For legacy browser support
   }));
