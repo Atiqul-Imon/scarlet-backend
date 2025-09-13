@@ -97,4 +97,18 @@ export async function removeGuestItem(sessionId: string, productId: string) {
   return cart;
 }
 
+export async function clearCart(userId: string) {
+  const cart = await repo.getOrCreateCart(userId);
+  cart.items = [];
+  await repo.saveCart(cart);
+  return cart;
+}
+
+export async function clearGuestCart(sessionId: string) {
+  const cart = await repo.getOrCreateGuestCart(sessionId);
+  cart.items = [];
+  await repo.saveCart(cart);
+  return cart;
+}
+
 

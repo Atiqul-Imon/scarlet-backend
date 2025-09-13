@@ -21,6 +21,7 @@ export async function updateItem(req: any, res: any) {
   }
 }
 export async function removeItem(req: any, res: any) { ok(res, await presenter.removeItem(req.userId, req.params.productId)); }
+export async function clearCart(req: any, res: any) { ok(res, await presenter.clearCart(req.userId)); }
 
 // Guest cart endpoints
 export async function getGuestCart(req: any, res: any) { 
@@ -66,6 +67,14 @@ export async function removeGuestItem(req: any, res: any) {
     return fail(res, { message: 'Session ID required for guest cart' }, 400);
   }
   ok(res, await presenter.removeGuestItem(sessionId, req.params.productId)); 
+}
+
+export async function clearGuestCart(req: any, res: any) {
+  const sessionId = req.headers['x-session-id'] || req.query.sessionId;
+  if (!sessionId) {
+    return fail(res, { message: 'Session ID required for guest cart' }, 400);
+  }
+  ok(res, await presenter.clearGuestCart(sessionId));
 }
 
 // Merge guest cart to user cart
