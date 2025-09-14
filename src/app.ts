@@ -96,7 +96,7 @@ export function createApp() {
       : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Session-ID', 'X-Mobile-Request', 'Cache-Control', 'Pragma'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Session-ID', 'X-Mobile-Request', 'Cache-Control', 'Pragma', 'Expires', 'Last-Modified', 'ETag', 'If-None-Match', 'If-Modified-Since'],
     exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
     optionsSuccessStatus: 200, // For legacy browser support
   }));
