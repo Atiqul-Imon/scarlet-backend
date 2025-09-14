@@ -17,6 +17,9 @@ router.get('/', requireAuth, asyncHandler(controller.listMine));
 // Get specific order by ID
 router.get('/:orderId', requireAuth, controller.getOrder);
 
+// Get order details by ID (public endpoint for order confirmation)
+router.get('/public/:orderId', controller.getOrderPublic);
+
 // Cancel order
 router.post('/:orderId/cancel', requireAuth, controller.cancelOrder);
 

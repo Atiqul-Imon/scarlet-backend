@@ -237,6 +237,32 @@ export const getOrder = asyncHandler(async (req: any, res: any) => {
   }
 });
 
+// Get order details by ID (public endpoint for order confirmation)
+export const getOrderPublic = asyncHandler(async (req: any, res: any) => {
+  const { orderId } = req.params;
+  
+  if (!orderId) {
+    return fail(res, { 
+      message: 'Order ID is required',
+      code: 'ORDER_ID_REQUIRED' 
+    }, 400);
+  }
+
+  try {
+    const order = await presenter.getOrderByIdPublic(orderId);
+    ok(res, order);
+  } catch (error: any) {
+    if (error.message.includes('not found')) {
+      return fail(res, { 
+        message: 'Order not found',
+        code: 'ORDER_NOT_FOUND' 
+      }, 404);
+    }
+    
+    throw error;
+  }
+});
+
 // Cancel order
 export const cancelOrder = asyncHandler(async (req: any, res: any) => {
   const userId = req.user?._id?.toString();

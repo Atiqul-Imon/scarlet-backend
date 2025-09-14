@@ -293,6 +293,17 @@ export async function getOrderById(orderId: string, userId: string): Promise<Ord
   return order;
 }
 
+export async function getOrderByIdPublic(orderId: string): Promise<Order> {
+  const order = await orderRepo.getOrderById(orderId);
+  if (!order) {
+    throw new AppError('Order not found', { status: 404 });
+  }
+  
+  // Return order details without user authentication check
+  // This is used for order confirmation pages
+  return order;
+}
+
 export async function cancelOrder(orderId: string, userId: string, reason?: string): Promise<Order> {
   const order = await orderRepo.getOrderById(orderId);
   if (!order) {
