@@ -120,7 +120,9 @@ export async function generateAndSendOTP(
       success: true,
       message: 'OTP sent successfully',
       expiresIn: 600, // 10 minutes
-      attemptsRemaining: 5
+      attemptsRemaining: 5,
+      // Include OTP in response for development/testing purposes
+      otp: code
     };
     
   } catch (error) {
