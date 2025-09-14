@@ -22,6 +22,14 @@ import { router as inventoryRoutes } from './modules/inventory/routes.js';
 import { router as analyticsRoutes } from './modules/analytics/routes.js';
 import { router as cartAbandonmentRoutes } from './modules/cart-abandonment/routes.js';
 import { rateLimits } from './core/middleware/rateLimiting.js';
+import { 
+  noCacheCart, 
+  noCacheOrders, 
+  noCacheAuth, 
+  noCacheUsers, 
+  noCacheCheckout,
+  shortCacheSemiStatic 
+} from './core/middleware/cacheControl.js';
 
 export function createApp() {
   const app = express();
@@ -128,18 +136,20 @@ export function createApp() {
       corsOrigins: env.allowedOrigins
     });
   });
-  app.use('/api/auth', authRoutes);
-  app.use('/api/users', userRoutes);
-  app.use('/api/catalog', catalogRoutes);
-  app.use('/api/cart', cartRoutes);
-  app.use('/api/orders', orderRoutes);
-  app.use('/api/admin', adminRoutes);
-  app.use('/api/payments', paymentRoutes);
-  app.use('/api/addresses', addressRoutes);
-  app.use('/api/wishlist', wishlistRoutes);
-  app.use('/api/inventory', inventoryRoutes);
-  app.use('/api/analytics', analyticsRoutes);
-  app.use('/api/cart-abandonment', cartAbandonmentRoutes);
+  
+  // API Routes with appropriate cache control
+  app.use('/api/auth', noCacheAuth, authRoutes);
+  app.use('/api/users', noCacheUsers, userRoutes);
+  app.use('/api/catalog', shortCacheSemiStatic, catalogRoutes);
+  app.use('/api/cart', noCacheCart, cartRoutes);
+  app.use('/api/orders', noCacheOrders, orderRoutes);
+  app.use('/api/admin', noCacheAuth, adminRoutes);
+  app.use('/api/payments', noCacheCheckout, paymentRoutes);
+  app.use('/api/addresses', noCacheUsers, addressRoutes);
+  app.use('/api/wishlist', noCacheUsers, wishlistRoutes);
+  app.use('/api/inventory', noCacheAuth, inventoryRoutes);
+  app.use('/api/analytics', noCacheAuth, analyticsRoutes);
+  app.use('/api/cart-abandonment', noCacheCart, cartAbandonmentRoutes);
 
   app.use((req, res) => res.status(404).json({ success: false, error: { message: 'Not Found' } }));
   app.use((err: any, req: any, res: any, _next: any) => { try { req.log?.error?.(err); } catch {} res.status(500).json({ success: false, error: { message: 'Internal Server Error' } }); });
