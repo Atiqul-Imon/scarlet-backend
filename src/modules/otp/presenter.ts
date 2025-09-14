@@ -52,6 +52,7 @@ async function sendOTPSMS(phone: string, code: string): Promise<void> {
   console.log('🔐 Development Mode: OTP logged to console instead of sending SMS');
 }
 
+
 // Generate and send OTP
 export async function generateAndSendOTP(
   request: OTPRequest, 
@@ -240,4 +241,24 @@ export async function cleanupExpiredOTPs(): Promise<void> {
   } catch (error) {
     logger.error({ error }, 'Failed to cleanup expired OTPs');
   }
+}
+
+// Export SMS function for use by other modules
+export async function sendOrderSuccessSMS(phone: string, orderNumber: string): Promise<void> {
+  // Create message under 160 characters
+  const message = `Order #${orderNumber} placed successfully! Your order is confirmed and will be processed soon. Thank you for choosing Scarlet Beauty!`;
+  
+  // TODO: Replace with real SMS service (Twilio, AWS SNS, etc.)
+  // For development and current production, we'll log the SMS to console
+  logger.info({
+    phone,
+    orderNumber,
+    message,
+    messageLength: message.length
+  }, 'Order Success SMS sent');
+  
+  console.log(`\n📱 Order Success SMS for ${phone}:`);
+  console.log(`Message: ${message}`);
+  console.log(`Length: ${message.length} characters\n`);
+  console.log('🔐 SMS logged to console (ready for real SMS integration)');
 }

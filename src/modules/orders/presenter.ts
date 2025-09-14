@@ -3,6 +3,7 @@ import * as catalogRepo from '../catalog/repository.js';
 import * as orderRepo from './repository.js';
 import * as inventoryPresenter from '../inventory/presenter.js';
 import * as analyticsPresenter from '../analytics/presenter.js';
+import { sendOrderSuccessSMS } from '../otp/presenter.js';
 import type { Order, OrderItem, ShippingAddress, PaymentMethod } from './model.js';
 import { AppError } from '../../core/errors/AppError.js';
 import { ObjectId } from 'mongodb';
@@ -157,10 +158,17 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
     console.error('Failed to track purchase analytics:', error);
   }
 
+  // Send order success SMS notification
+  try {
+    await sendOrderSuccessSMS(createdOrder.shippingAddress.phone, createdOrder.orderNumber);
+  } catch (error) {
+    console.error('Failed to send order success SMS:', error);
+    // Don't fail the order creation if SMS fails
+  }
+
   // TODO: In production, integrate with:
   // - Payment gateway for non-COD orders
   // - Email service for order confirmation
-  // - SMS service for notifications
 
   return createdOrder;
 }
@@ -271,6 +279,14 @@ export async function createGuestOrderFromCart(sessionId: string, orderData: Cre
 
   // Clear the guest cart after successful order
   await cartRepo.saveCart({ ...cart, items: [] });
+
+  // Send order success SMS notification
+  try {
+    await sendOrderSuccessSMS(createdOrder.shippingAddress.phone, createdOrder.orderNumber);
+  } catch (error) {
+    console.error('Failed to send order success SMS:', error);
+    // Don't fail the order creation if SMS fails
+  }
 
   return createdOrder;
 }
