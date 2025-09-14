@@ -28,4 +28,5 @@ export interface OTPResponse {
   message: string;
   expiresIn?: number; // seconds until expiration
   attemptsRemaining?: number;
+  otp?: string; // Include OTP for development/testing purposes
 }
