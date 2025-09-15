@@ -2,13 +2,17 @@ import * as repo from './repository.js';
 import { AppError } from '../../core/errors/AppError.js';
 import type { CreateWishlistItemRequest } from './model.js';
 
-export async function addToWishlist(userId: string, productId: string) {
+export async function addToWishlist(userId: string, productId: string, options?: {
+  notifyWhenInStock?: boolean;
+  customerNotes?: string;
+  priority?: 'low' | 'medium' | 'high';
+}) {
   if (!productId || productId.trim().length === 0) {
     throw new AppError('Product ID is required', { status: 400 });
   }
 
   try {
-    return await repo.addToWishlist(userId, productId);
+    return await repo.addToWishlist(userId, productId, options);
   } catch (error: any) {
     if (error.message.includes('already in wishlist')) {
       throw new AppError('Product is already in your wishlist', { status: 409 });
@@ -77,6 +81,46 @@ export async function getWishlistStats(userId: string) {
   try {
     const count = await repo.getWishlistCount(userId);
     return { count };
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Admin functions for out-of-stock wishlist management
+export async function getOutOfStockWishlistItems() {
+  try {
+    return await repo.getOutOfStockWishlistItems();
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getWishlistAnalytics() {
+  try {
+    return await repo.getWishlistAnalytics();
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function notifyCustomersAboutRestock(productId: string, options: {
+  message?: string;
+  estimatedRestockDate?: string;
+}) {
+  try {
+    return await repo.notifyCustomersAboutRestock(productId, options);
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateWishlistItemPriority(wishlistItemId: string, options: {
+  priority?: 'low' | 'medium' | 'high';
+  estimatedRestockDate?: string;
+  adminNotes?: string;
+}) {
+  try {
+    return await repo.updateWishlistItemPriority(wishlistItemId, options);
   } catch (error) {
     throw error;
   }

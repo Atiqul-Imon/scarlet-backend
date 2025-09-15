@@ -14,7 +14,7 @@ export const addToWishlist = asyncHandler(async (req: Request, res: Response) =>
     }, 401);
   }
 
-  const { productId } = req.body;
+  const { productId, notifyWhenInStock, customerNotes, priority } = req.body;
   
   if (!productId) {
     return fail(res, { 
@@ -24,7 +24,11 @@ export const addToWishlist = asyncHandler(async (req: Request, res: Response) =>
   }
 
   try {
-    const wishlistItem = await presenter.addToWishlist(userId, productId);
+    const wishlistItem = await presenter.addToWishlist(userId, productId, {
+      notifyWhenInStock,
+      customerNotes,
+      priority
+    });
     ok(res, wishlistItem);
   } catch (error: any) {
     if (error.message.includes('already in wishlist')) {
@@ -157,6 +161,108 @@ export const getWishlistStats = asyncHandler(async (req: Request, res: Response)
   try {
     const stats = await presenter.getWishlistStats(userId);
     ok(res, stats);
+  } catch (error) {
+    throw error;
+  }
+});
+
+// Admin: Get out-of-stock wishlist items
+export const getOutOfStockWishlistItems = asyncHandler(async (req: Request, res: Response) => {
+  const userRole = req.user?.role;
+  
+  if (userRole !== 'admin' && userRole !== 'staff') {
+    return fail(res, { 
+      message: 'Admin access required',
+      code: 'ADMIN_REQUIRED' 
+    }, 403);
+  }
+
+  try {
+    const items = await presenter.getOutOfStockWishlistItems();
+    ok(res, items);
+  } catch (error) {
+    throw error;
+  }
+});
+
+// Admin: Get wishlist analytics
+export const getWishlistAnalytics = asyncHandler(async (req: Request, res: Response) => {
+  const userRole = req.user?.role;
+  
+  if (userRole !== 'admin' && userRole !== 'staff') {
+    return fail(res, { 
+      message: 'Admin access required',
+      code: 'ADMIN_REQUIRED' 
+    }, 403);
+  }
+
+  try {
+    const analytics = await presenter.getWishlistAnalytics();
+    ok(res, analytics);
+  } catch (error) {
+    throw error;
+  }
+});
+
+// Admin: Send notification to customers about restocked items
+export const notifyCustomersAboutRestock = asyncHandler(async (req: Request, res: Response) => {
+  const userRole = req.user?.role;
+  
+  if (userRole !== 'admin' && userRole !== 'staff') {
+    return fail(res, { 
+      message: 'Admin access required',
+      code: 'ADMIN_REQUIRED' 
+    }, 403);
+  }
+
+  const { productId, message, estimatedRestockDate } = req.body;
+  
+  if (!productId) {
+    return fail(res, { 
+      message: 'Product ID is required',
+      code: 'PRODUCT_ID_REQUIRED' 
+    }, 400);
+  }
+
+  try {
+    const result = await presenter.notifyCustomersAboutRestock(productId, {
+      message,
+      estimatedRestockDate
+    });
+    ok(res, result);
+  } catch (error) {
+    throw error;
+  }
+});
+
+// Admin: Update wishlist item priority
+export const updateWishlistItemPriority = asyncHandler(async (req: Request, res: Response) => {
+  const userRole = req.user?.role;
+  
+  if (userRole !== 'admin' && userRole !== 'staff') {
+    return fail(res, { 
+      message: 'Admin access required',
+      code: 'ADMIN_REQUIRED' 
+    }, 403);
+  }
+
+  const { wishlistItemId } = req.params;
+  const { priority, estimatedRestockDate, adminNotes } = req.body;
+  
+  if (!wishlistItemId) {
+    return fail(res, { 
+      message: 'Wishlist item ID is required',
+      code: 'WISHLIST_ITEM_ID_REQUIRED' 
+    }, 400);
+  }
+
+  try {
+    const result = await presenter.updateWishlistItemPriority(wishlistItemId, {
+      priority,
+      estimatedRestockDate,
+      adminNotes
+    });
+    ok(res, result);
   } catch (error) {
     throw error;
   }
