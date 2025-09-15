@@ -266,7 +266,7 @@ export async function getWishlistAnalytics(): Promise<WishlistAnalytics> {
       {
         $limit: 10
       }
-    ]).toArray(),
+    ]).toArray() as unknown as { productId: string; productName: string; wishlistCount: number; isOutOfStock: boolean; }[],
     
     // Recent wishlist activity
     db.collection('wishlist').aggregate([
@@ -295,7 +295,7 @@ export async function getWishlistAnalytics(): Promise<WishlistAnalytics> {
       {
         $limit: 20
       }
-    ]).toArray()
+    ]).toArray() as unknown as { userId: string; productId: string; action: "added" | "removed"; timestamp: string; }[]
   ]);
   
   return {
