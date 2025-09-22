@@ -142,10 +142,9 @@ export async function getCategoryHierarchy(): Promise<CategoryHierarchy> {
 
 export async function getCategoryChildren(parentId: string): Promise<Category[]> {
   const db = await getDb();
-  const { ObjectId } = await import('mongodb');
   return db.collection<Category>('categories')
     .find({ 
-      parentId: new ObjectId(parentId),
+      parentId: parentId,
       isActive: { $ne: false } 
     })
     .sort({ sortOrder: 1, name: 1 })
@@ -202,7 +201,7 @@ export async function updateCategoryHierarchy(categoryId: string, parentId: stri
   const path = parentId ? await getCategoryPath(parentId) + '/' + (await getCategoryById(categoryId))?.slug : (await getCategoryById(categoryId))?.slug || '';
   
   const updateData = {
-    parentId: parentId ? new ObjectId(parentId) : null,
+    parentId: parentId || null,
     level,
     path,
     updatedAt: new Date().toISOString()
