@@ -84,3 +84,56 @@ export async function deleteCategory(id: string) {
   
   await repo.deleteCategory(id);
 }
+
+// Hierarchy-specific functions
+export async function getCategoryTree() {
+  return repo.getCategoryTree();
+}
+
+export async function getCategoryHierarchy() {
+  return repo.getCategoryHierarchy();
+}
+
+export async function getCategoryChildren(parentId: string) {
+  if (!parentId) {
+    throw new AppError('Parent category ID is required', { status: 400 });
+  }
+  
+  return repo.getCategoryChildren(parentId);
+}
+
+export async function getCategoryAncestors(categoryId: string) {
+  if (!categoryId) {
+    throw new AppError('Category ID is required', { status: 400 });
+  }
+  
+  return repo.getCategoryAncestors(categoryId);
+}
+
+export async function getCategoryPath(categoryId: string) {
+  if (!categoryId) {
+    throw new AppError('Category ID is required', { status: 400 });
+  }
+  
+  return repo.getCategoryPath(categoryId);
+}
+
+export async function updateCategoryHierarchy(categoryId: string, parentId: string | null) {
+  if (!categoryId) {
+    throw new AppError('Category ID is required', { status: 400 });
+  }
+  
+  const existingCategory = await repo.getCategoryById(categoryId);
+  if (!existingCategory) {
+    throw new AppError('Category not found', { status: 404 });
+  }
+  
+  if (parentId) {
+    const parentCategory = await repo.getCategoryById(parentId);
+    if (!parentCategory) {
+      throw new AppError('Parent category not found', { status: 404 });
+    }
+  }
+  
+  return repo.updateCategoryHierarchy(categoryId, parentId);
+}

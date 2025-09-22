@@ -41,6 +41,42 @@ export async function createCategory(req: Request, res: Response) {
   ok(res, result);
 }
 
+// Hierarchy endpoints
+export async function getCategoryTree(_req: Request, res: Response) {
+  const result = await presenter.getCategoryTree();
+  ok(res, result);
+}
+
+export async function getCategoryHierarchy(_req: Request, res: Response) {
+  const result = await presenter.getCategoryHierarchy();
+  ok(res, result);
+}
+
+export async function getCategoryChildren(req: Request, res: Response) {
+  const { parentId } = req.params;
+  const result = await presenter.getCategoryChildren(parentId);
+  ok(res, result);
+}
+
+export async function getCategoryAncestors(req: Request, res: Response) {
+  const { categoryId } = req.params;
+  const result = await presenter.getCategoryAncestors(categoryId);
+  ok(res, result);
+}
+
+export async function getCategoryPath(req: Request, res: Response) {
+  const { categoryId } = req.params;
+  const result = await presenter.getCategoryPath(categoryId);
+  ok(res, result);
+}
+
+export async function updateCategoryHierarchy(req: Request, res: Response) {
+  const { categoryId } = req.params;
+  const { parentId } = req.body;
+  const result = await presenter.updateCategoryHierarchy(categoryId, parentId);
+  ok(res, result);
+}
+
 export async function updateCategory(req: Request, res: Response) {
   const { id } = req.params;
   const result = await presenter.updateCategory(id, req.body);

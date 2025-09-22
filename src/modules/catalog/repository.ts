@@ -1,5 +1,5 @@
 import { getDb } from '../../core/db/mongoClient.js';
-import type { Category, Product } from './model.js';
+import type { Category, Product, CategoryTree, CategoryHierarchy } from './model.js';
 
 export async function listCategories(): Promise<Category[]> {
   const db = await getDb();
@@ -110,4 +110,176 @@ export async function deleteCategory(id: string): Promise<void> {
   const db = await getDb();
   const { ObjectId } = await import('mongodb');
   await db.collection<Category>('categories').deleteOne({ _id: new ObjectId(id) } as any);
+}
+
+// Hierarchy-specific functions
+export async function getCategoryTree(): Promise<CategoryTree[]> {
+  const db = await getDb();
+  const categories = await db.collection<Category>('categories')
+    .find({ isActive: { $ne: false } })
+    .sort({ sortOrder: 1, name: 1 })
+    .toArray();
+
+  return buildCategoryTree(categories);
+}
+
+export async function getCategoryHierarchy(): Promise<CategoryHierarchy> {
+  const db = await getDb();
+  const categories = await db.collection<Category>('categories')
+    .find({ isActive: { $ne: false } })
+    .sort({ sortOrder: 1, name: 1 })
+    .toArray();
+
+  const rootCategories = buildCategoryTree(categories);
+  const maxLevel = getMaxLevel(categories);
+
+  return {
+    rootCategories,
+    allCategories: categories,
+    maxLevel
+  };
+}
+
+export async function getCategoryChildren(parentId: string): Promise<Category[]> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  return db.collection<Category>('categories')
+    .find({ 
+      parentId: new ObjectId(parentId),
+      isActive: { $ne: false } 
+    })
+    .sort({ sortOrder: 1, name: 1 })
+    .toArray();
+}
+
+export async function getCategoryAncestors(categoryId: string): Promise<Category[]> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  const ancestors: Category[] = [];
+  
+  let currentCategory = await db.collection<Category>('categories')
+    .findOne({ _id: new ObjectId(categoryId) } as any);
+  
+  while (currentCategory && currentCategory.parentId) {
+    const parent = await db.collection<Category>('categories')
+      .findOne({ _id: new ObjectId(currentCategory.parentId) } as any);
+    
+    if (parent) {
+      ancestors.unshift(parent);
+      currentCategory = parent;
+    } else {
+      break;
+    }
+  }
+  
+  return ancestors;
+}
+
+export async function getCategoryPath(categoryId: string): Promise<string> {
+  const ancestors = await getCategoryAncestors(categoryId);
+  const category = await getCategoryById(categoryId);
+  
+  if (!category) return '';
+  
+  const pathSegments = [...ancestors.map(cat => cat.slug), category.slug];
+  return pathSegments.join('/');
+}
+
+export async function updateCategoryHierarchy(categoryId: string, parentId: string | null): Promise<Category> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  
+  // Prevent circular references
+  if (parentId) {
+    const ancestors = await getCategoryAncestors(parentId);
+    if (ancestors.some(ancestor => ancestor._id === categoryId)) {
+      throw new Error('Cannot set parent: would create circular reference');
+    }
+  }
+  
+  // Calculate new level and path
+  const level = parentId ? await getCategoryLevel(parentId) + 1 : 0;
+  const path = parentId ? await getCategoryPath(parentId) + '/' + (await getCategoryById(categoryId))?.slug : (await getCategoryById(categoryId))?.slug || '';
+  
+  const updateData = {
+    parentId: parentId ? new ObjectId(parentId) : null,
+    level,
+    path,
+    updatedAt: new Date().toISOString()
+  };
+  
+  await db.collection<Category>('categories').updateOne(
+    { _id: new ObjectId(categoryId) } as any,
+    { $set: updateData }
+  );
+  
+  // Update children's levels and paths
+  await updateChildrenHierarchy(categoryId, level, path);
+  
+  const updatedCategory = await db.collection<Category>('categories').findOne({ _id: new ObjectId(categoryId) } as any);
+  return updatedCategory!;
+}
+
+// Helper functions
+function buildCategoryTree(categories: Category[]): CategoryTree[] {
+  const categoryMap = new Map<string, CategoryTree>();
+  const rootCategories: CategoryTree[] = [];
+  
+  // Create map of all categories
+  categories.forEach(category => {
+    categoryMap.set(category._id!, { ...category, children: [] });
+  });
+  
+  // Build tree structure
+  categories.forEach(category => {
+    const categoryTree = categoryMap.get(category._id!)!;
+    
+    if (category.parentId) {
+      const parent = categoryMap.get(category.parentId);
+      if (parent) {
+        parent.children = parent.children || [];
+        parent.children.push(categoryTree);
+        parent.hasChildren = true;
+        parent.childrenCount = (parent.childrenCount || 0) + 1;
+      }
+    } else {
+      rootCategories.push(categoryTree);
+    }
+  });
+  
+  return rootCategories;
+}
+
+function getMaxLevel(categories: Category[]): number {
+  return Math.max(...categories.map(cat => cat.level || 0), 0);
+}
+
+async function getCategoryLevel(categoryId: string): Promise<number> {
+  const ancestors = await getCategoryAncestors(categoryId);
+  return ancestors.length;
+}
+
+async function updateChildrenHierarchy(parentId: string, parentLevel: number, parentPath: string): Promise<void> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  const children = await getCategoryChildren(parentId);
+  
+  for (const child of children) {
+    const childLevel = parentLevel + 1;
+    const childPath = parentPath + '/' + child.slug;
+    
+    await db.collection<Category>('categories').updateOne(
+      { _id: new ObjectId(child._id!) } as any,
+      { 
+        $set: { 
+          level: childLevel, 
+          path: childPath,
+          updatedAt: new Date().toISOString()
+        } 
+      }
+    );
+    
+    // Recursively update grandchildren
+    await updateChildrenHierarchy(child._id!, childLevel, childPath);
+  }
 }
