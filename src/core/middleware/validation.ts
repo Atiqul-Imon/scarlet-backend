@@ -14,7 +14,7 @@ export interface ValidationRule {
   minLength?: number;
   maxLength?: number;
   pattern?: RegExp;
-  custom?: (value: any) => string | null; // Return error message or null
+  custom?: (value: unknown) => string | null; // Return error message or null
 }
 
 // Common validation patterns
@@ -75,7 +75,7 @@ export function validate(schema: ValidationSchema) {
   };
 }
 
-function validateField(field: string, value: any, rule: ValidationRule): string | null {
+function validateField(field: string, value: unknown, rule: ValidationRule): string | null {
   // Check required
   if (rule.required && (value === undefined || value === null || value === '')) {
     return `${field} is required`;

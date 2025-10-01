@@ -71,12 +71,19 @@ export function auditLog(action: string) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (req.user && (req.user.role === 'admin' || req.user.role === 'staff')) {
       // Store audit info in request for later logging
-      (req as Request & { auditInfo?: any }).auditInfo = {
-        userId: req.user._id,
-        userEmail: req.user.email || req.user.phone,
+      (req as Request & { auditInfo?: {
+        userId: string;
+        userEmail: string;
+        action: string;
+        timestamp: Date;
+        ip: string;
+        userAgent?: string;
+      } }).auditInfo = {
+        userId: req.user._id || '',
+        userEmail: req.user.email || req.user.phone || '',
         action,
         timestamp: new Date(),
-        ip: req.ip,
+        ip: req.ip || '',
         userAgent: req.headers['user-agent']
       };
     }

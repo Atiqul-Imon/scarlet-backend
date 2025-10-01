@@ -12,7 +12,12 @@ import type {
   PaymentConfig,
   PaymentMethod,
   PaymentStatus,
-  RefundTransaction
+  RefundTransaction,
+  BkashPaymentResponse,
+  NagadPaymentResponse,
+  BkashExecuteResponse,
+  NagadVerifyResponse,
+  PaymentStats
 } from './model.js';
 
 export class PaymentService {
@@ -44,7 +49,7 @@ export class PaymentService {
         orderId: request.orderId,
         userId: '', // Will be set by the caller
         paymentMethod: request.paymentMethod,
-        gateway: this.getGatewayForMethod(request.paymentMethod) as any,
+        gateway: this.getGatewayForMethod(request.paymentMethod) as 'bkash' | 'nagad' | 'rocket' | 'stripe' | 'manual',
         amount: request.amount,
         currency: request.currency,
         status: 'pending',
@@ -54,7 +59,7 @@ export class PaymentService {
       const savedPayment = await paymentRepository.createPayment(paymentTransaction);
 
       // Create payment with gateway
-      let gatewayResponse: any;
+      let gatewayResponse: BkashPaymentResponse | NagadPaymentResponse | Record<string, unknown> = {};
       let gatewayUrl: string | undefined;
 
       switch (request.paymentMethod) {
@@ -68,13 +73,14 @@ export class PaymentService {
             payerReference: `USER_${savedPayment.userId}`
           };
 
-          gatewayResponse = await this.bkashGateway.createPayment(bkashRequest);
-          gatewayUrl = this.bkashGateway.getPaymentUrl(gatewayResponse.paymentID);
+          const bkashResponse = await this.bkashGateway.createPayment(bkashRequest);
+          gatewayResponse = bkashResponse;
+          gatewayUrl = this.bkashGateway.getPaymentUrl(bkashResponse.paymentID);
           
           // Update payment with gateway data
           await paymentRepository.updatePaymentGatewayData(savedPayment._id!, {
-            gatewayTransactionId: gatewayResponse.paymentID,
-            gatewayResponse: gatewayResponse
+            gatewayTransactionId: bkashResponse.paymentID,
+            gatewayResponse: bkashResponse
           });
           break;
 
@@ -86,13 +92,14 @@ export class PaymentService {
             callbackUrl: request.returnUrl
           };
 
-          gatewayResponse = await this.nagadGateway.createPayment(nagadRequest);
-          gatewayUrl = this.nagadGateway.getPaymentUrl(gatewayResponse.paymentRefId);
+          const nagadResponse = await this.nagadGateway.createPayment(nagadRequest);
+          gatewayResponse = nagadResponse;
+          gatewayUrl = this.nagadGateway.getPaymentUrl(nagadResponse.paymentRefId);
           
           // Update payment with gateway data
           await paymentRepository.updatePaymentGatewayData(savedPayment._id!, {
-            gatewayTransactionId: gatewayResponse.paymentRefId,
-            gatewayResponse: gatewayResponse
+            gatewayTransactionId: nagadResponse.paymentRefId,
+            gatewayResponse: nagadResponse
           });
           break;
 
@@ -146,7 +153,7 @@ export class PaymentService {
         };
       }
 
-      let verificationResult: any;
+      let verificationResult: BkashExecuteResponse | NagadVerifyResponse | Record<string, unknown> = {};
       let newStatus: PaymentStatus = 'failed';
 
       switch (payment.paymentMethod) {
@@ -155,11 +162,12 @@ export class PaymentService {
             throw new Error('bKash payment ID not found');
           }
           
-          verificationResult = await this.bkashGateway.executePayment(payment.gatewayTransactionId);
+          const bkashExecuteResult = await this.bkashGateway.executePayment(payment.gatewayTransactionId);
+          verificationResult = bkashExecuteResult;
           
-          if (verificationResult.transactionStatus === 'Completed') {
+          if (bkashExecuteResult.transactionStatus === 'Completed') {
             newStatus = 'completed';
-          } else if (verificationResult.transactionStatus === 'Failed') {
+          } else if (bkashExecuteResult.transactionStatus === 'Failed') {
             newStatus = 'failed';
           } else {
             newStatus = 'processing';
@@ -171,12 +179,13 @@ export class PaymentService {
             throw new Error('Nagad payment reference not found');
           }
           
-          verificationResult = await this.nagadGateway.verifyPayment(
+          const nagadVerifyResult = await this.nagadGateway.verifyPayment(
             payment.gatewayTransactionId, 
             payment.orderId
           );
+          verificationResult = nagadVerifyResult;
           
-          if (verificationResult.status === 'Success') {
+          if (nagadVerifyResult.status === 'Success') {
             newStatus = 'completed';
           } else {
             newStatus = 'failed';
@@ -222,19 +231,19 @@ export class PaymentService {
   }
 
   // Process webhook
-  async processWebhook(gateway: string, payload: any, signature?: string): Promise<void> {
+  async processWebhook(gateway: string, payload: Record<string, unknown>, signature?: string): Promise<void> {
     try {
       // Create webhook record
       const webhook = await paymentRepository.createWebhook({
-        transactionId: payload.paymentID || payload.paymentRefId || 'unknown',
-        gateway: gateway as any,
-        eventType: payload.eventType || 'payment_update',
+        transactionId: (payload.paymentID as string) || (payload.paymentRefId as string) || 'unknown',
+        gateway: gateway as 'bkash' | 'nagad' | 'rocket' | 'stripe' | 'manual',
+        eventType: (payload.eventType as string) || 'payment_update',
         payload,
         signature,
         processed: false
       });
 
-      let webhookData: any;
+      let webhookData: Record<string, unknown>;
 
       switch (gateway) {
         case 'bkash':
@@ -249,7 +258,7 @@ export class PaymentService {
 
       // Find payment by gateway transaction ID
       const payment = await paymentRepository.getPaymentByGatewayTransactionId(
-        webhookData.paymentID || webhookData.paymentRefId
+        (webhookData.paymentID as string) || (webhookData.paymentRefId as string)
       );
 
       if (!payment) {
@@ -327,7 +336,7 @@ export class PaymentService {
       const savedRefund = await paymentRepository.createRefund(refund);
 
       // Process refund with gateway
-      let refundResult: any;
+      let refundResult: Record<string, unknown> = {};
 
       switch (payment.paymentMethod) {
         case 'bkash':
@@ -366,12 +375,12 @@ export class PaymentService {
       }
 
       // Update refund status
-      const newRefundStatus = refundResult.status === 'Success' ? 'completed' : 'failed';
+      const newRefundStatus = (refundResult.status as string) === 'Success' ? 'completed' : 'failed';
       const updatedRefund = await paymentRepository.updateRefundStatus(
         savedRefund._id!,
         newRefundStatus,
         {
-          gatewayRefundId: refundResult.refundId || refundResult.refundTrxID,
+          gatewayRefundId: (refundResult.refundId as string) || (refundResult.refundTrxID as string),
           gatewayResponse: refundResult
         }
       );
@@ -411,7 +420,7 @@ export class PaymentService {
   }
 
   // Get payment statistics
-  async getPaymentStats(startDate?: string, endDate?: string): Promise<any> {
+  async getPaymentStats(startDate?: string, endDate?: string): Promise<PaymentStats> {
     return await paymentRepository.getPaymentStats(startDate, endDate);
   }
 
