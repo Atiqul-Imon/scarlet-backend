@@ -1,4 +1,4 @@
-import type { Brand, BrandTree, BrandHierarchy } from './model';
+import type { Brand, BrandTree, BrandHierarchy } from './model.js';
 import {
   createBrand as repoCreateBrand,
   getBrands as repoGetBrands,
@@ -13,7 +13,7 @@ import {
   getBrandStats as repoGetBrandStats,
   getBrandTree as repoGetBrandTree,
   getBrandHierarchy as repoGetBrandHierarchy
-} from './repository';
+} from './repository.js';
 
 // Create brand
 export async function createBrand(brandData: Partial<Brand>): Promise<Brand> {
