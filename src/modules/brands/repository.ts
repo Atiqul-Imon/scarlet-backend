@@ -1,6 +1,6 @@
 import { ObjectId } from 'mongodb';
-import { getDb } from '../../core/db/mongoClient';
-import type { Brand, BrandTree, BrandHierarchy } from './model';
+import { getDb } from '../../core/db/mongoClient.js';
+import type { Brand, BrandTree, BrandHierarchy } from './model.js';
 
 // Create a new brand
 export async function createBrand(brandData: Partial<Brand>): Promise<Brand> {
