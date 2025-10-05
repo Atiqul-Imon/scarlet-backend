@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import { asyncHandler } from '../../core/http/asyncHandler';
-import { ok, created, fail } from '../../core/http/response';
+import { asyncHandler } from '../../core/http/asyncHandler.js';
+import { ok, created, fail } from '../../core/http/response.js';
 import {
   createBrand,
   getBrands,
@@ -17,7 +17,7 @@ import {
   getBrandHierarchy,
   toggleBrandStatus,
   toggleBrandFeatured
-} from './presenter';
+} from './presenter.js';
 
 // Create brand
 export const createBrandController = asyncHandler(async (req: Request, res: Response) => {
