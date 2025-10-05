@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireAdmin } from '../../core/middleware/auth';
+import { requireAuth, requireAdmin } from '../../core/middleware/auth.js';
 import {
   createBrandController,
   getBrandsController,
