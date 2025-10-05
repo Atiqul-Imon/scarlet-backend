@@ -16,7 +16,7 @@ import {
   toggleBrandStatusController,
   toggleBrandFeaturedController,
   updateBrandProductCountController
-} from './controller';
+} from './controller.js';
 
 const router = Router();
 
