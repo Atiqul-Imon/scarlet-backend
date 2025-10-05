@@ -1,4 +1,5 @@
-import { Document, ObjectId } from 'mongodb';
+import type { Document } from 'mongodb';
+import { ObjectId } from 'mongodb';
 
 export interface Brand extends Document {
   _id?: ObjectId;
