@@ -51,6 +51,14 @@ export async function getProductsByCategory(categoryId: string) {
   return repo.getProductsByCategory(categoryId);
 }
 
+export async function getProductsByHomepageSection(homepageSection: string) {
+  if (!homepageSection) {
+    throw new AppError('Homepage section is required', { status: 400 });
+  }
+  
+  return repo.getProductsByHomepageSection(homepageSection);
+}
+
 export async function createCategory(categoryData: any) {
   if (!categoryData.name || !categoryData.slug) {
     throw new AppError('Category name and slug are required', { status: 400 });

@@ -23,4 +23,5 @@ router.put('/categories/:categoryId/hierarchy', asyncHandler(controller.updateCa
 router.get('/products', asyncHandler(controller.products));
 router.get('/products/search', rateLimits.search, asyncHandler(controller.searchProducts));
 router.get('/products/category/:categoryId', asyncHandler(controller.getProductsByCategory));
+router.get('/products/homepage/:section', asyncHandler(controller.getProductsByHomepageSection));
 router.get('/products/:slug', asyncHandler(controller.getProductBySlug));

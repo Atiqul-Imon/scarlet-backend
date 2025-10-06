@@ -36,6 +36,12 @@ export async function getProductsByCategory(req: Request, res: Response) {
   ok(res, result);
 }
 
+export async function getProductsByHomepageSection(req: Request, res: Response) {
+  const { section } = req.params;
+  const result = await presenter.getProductsByHomepageSection(section);
+  ok(res, result);
+}
+
 export async function createCategory(req: Request, res: Response) {
   const result = await presenter.createCategory(req.body);
   ok(res, result);

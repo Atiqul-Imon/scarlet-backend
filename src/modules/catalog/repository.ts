@@ -50,6 +50,17 @@ export async function searchProducts(query: string): Promise<Product[]> {
     .toArray();
 }
 
+export async function getProductsByHomepageSection(homepageSection: string): Promise<Product[]> {
+  const db = await getDb();
+  return db.collection<Product>('products')
+    .find({ 
+      homepageSection: homepageSection as any,
+      isActive: { $ne: false } 
+    })
+    .limit(20)
+    .toArray();
+}
+
 export async function insertCategories(categories: Category[]): Promise<void> {
   const db = await getDb();
   await db.collection<Category>('categories').insertMany(categories);
