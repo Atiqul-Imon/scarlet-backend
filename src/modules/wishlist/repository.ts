@@ -40,7 +40,6 @@ export async function addToWishlist(userId: string, productId: string, options?:
       brand: product.brand,
       stock: product.stock,
       categoryIds: product.categoryIds || [],
-      rating: product.rating,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
     },
@@ -84,7 +83,6 @@ export async function getWishlistByUser(userId: string): Promise<WishlistItem[]>
             brand: product.brand,
             stock: product.stock,
             categoryIds: product.categoryIds || [],
-            rating: product.rating,
             createdAt: product.createdAt,
             updatedAt: product.updatedAt,
           },
@@ -181,7 +179,6 @@ export async function getOutOfStockWishlistItems(): Promise<OutOfStockWishlistIt
           brand: '$product.brand',
           stock: '$product.stock',
           categoryIds: '$product.categoryIds',
-          rating: '$product.rating',
           createdAt: '$product.createdAt',
           updatedAt: '$product.updatedAt'
         },

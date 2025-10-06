@@ -31,10 +31,6 @@ export interface Product {
   brand?: string;
   stock?: number;
   categoryIds: string[];
-  rating?: {
-    average: number;
-    count: number;
-  };
   createdAt?: string;
   updatedAt?: string;
 }

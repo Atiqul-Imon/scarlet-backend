@@ -67,10 +67,6 @@ export interface Product {
   isFeatured?: boolean;
   seoTitle?: string;
   seoDescription?: string;
-  rating?: {
-    average: number;
-    count: number;
-  };
   createdAt?: string;
   updatedAt?: string;
 }
