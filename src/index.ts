@@ -2,15 +2,23 @@ import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { closeMongoConnection } from './core/db/mongoClient.js';
 import { logger } from './core/logging/logger.js';
+import { createServer as createHttpServer } from 'http';
+import { ChatSocketService } from './modules/chat/socketService.js';
 
 export function createServer() {
   const app = createApp();
-  const server = app.listen(env.port, () => {
+  const httpServer = createHttpServer(app);
+  
+  // Initialize WebSocket service for chat
+  const chatSocketService = new ChatSocketService(httpServer);
+  
+  const server = httpServer.listen(env.port, () => {
     if (process.env.NODE_ENV !== 'test') {
       logger.info(`🚀 Scarlet API server started successfully`);
       logger.info(`📡 Server listening on http://localhost:${env.port}`);
       logger.info(`🌍 Environment: ${env.nodeEnv}`);
       logger.info(`🍃 MongoDB Atlas connection ready`);
+      logger.info(`💬 Chat WebSocket service initialized`);
     }
   });
 

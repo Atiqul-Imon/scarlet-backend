@@ -13,6 +13,14 @@ class RedisClient {
 
   private async initializeRedis() {
     try {
+      // Check if Redis is available before attempting connection
+      if (!process.env.REDIS_URL && !process.env.REDIS_ENABLED) {
+        logger.info('Redis not configured, using in-memory storage');
+        this.client = null;
+        this.isConnected = false;
+        return;
+      }
+      
       // Use Redis URL if provided, otherwise use default localhost
       const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
       

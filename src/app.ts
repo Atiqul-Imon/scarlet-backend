@@ -24,6 +24,7 @@ import { router as cartAbandonmentRoutes } from './modules/cart-abandonment/rout
 import { router as otpRoutes } from './modules/otp/routes.js';
 import { router as blogRoutes } from './modules/blog/routes.js';
 import { router as brandRoutes } from './modules/brands/routes.js';
+import { router as chatRoutes } from './modules/chat/routes.js';
 import { rateLimits } from './core/middleware/rateLimiting.js';
 import { 
   noCacheCart, 
@@ -80,7 +81,7 @@ export function createApp() {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Session-ID, X-Mobile-Request, Cache-Control, Pragma, Expires, Last-Modified, ETag, If-None-Match, If-Modified-Since');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Session-ID, X-Mobile-Request, Cache-Control, Pragma, Expires, Last-Modified, ETag, If-None-Match, If-Modified-Since, X-Timestamp');
     res.header('Access-Control-Expose-Headers', 'X-Total-Count, X-Page-Count');
     
     // Handle preflight requests
@@ -156,6 +157,7 @@ export function createApp() {
   app.use('/api/otp', noCacheAuth, otpRoutes);
   app.use('/api/blog', shortCacheSemiStatic, blogRoutes);
   app.use('/api/brands', shortCacheSemiStatic, brandRoutes);
+  app.use('/api/chat', noCacheAuth, chatRoutes);
 
   app.use((req, res) => res.status(404).json({ success: false, error: { message: 'Not Found' } }));
   app.use((err: any, req: any, res: any, _next: any) => { try { req.log?.error?.(err); } catch {} res.status(500).json({ success: false, error: { message: 'Internal Server Error' } }); });
