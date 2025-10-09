@@ -103,6 +103,16 @@ export async function getActiveConversations(): Promise<ChatConversation[]> {
   }
 }
 
+export async function getConversationByCustomer(customerId: string): Promise<ChatConversation | null> {
+  try {
+    return await repo.getConversationByCustomer(customerId);
+  } catch (error) {
+    logger.error({ error, customerId }, 'Failed to get conversation by customer');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to get conversation by customer', { code: 'CONVERSATION_GET_ERROR' });
+  }
+}
+
 export async function assignConversationToAdmin(conversationId: string, adminId: string): Promise<ChatConversation | null> {
   try {
     const conversation = await repo.updateConversation(conversationId, {

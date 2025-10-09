@@ -38,6 +38,17 @@ export const getActiveConversations = asyncHandler(async (req: Request, res: Res
   ok(res, conversations);
 });
 
+export const getConversationByCustomer = asyncHandler(async (req: Request, res: Response) => {
+  const { customerId } = req.params;
+  
+  if (!customerId) {
+    return fail(res, { message: 'Customer ID is required', code: 'MISSING_CUSTOMER_ID' }, 400);
+  }
+  
+  const conversation = await presenter.getConversationByCustomer(customerId);
+  ok(res, conversation);
+});
+
 export const assignConversationToAdmin = asyncHandler(async (req: Request, res: Response) => {
   const { conversationId } = req.params;
   const { adminId } = req.body;
