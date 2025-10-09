@@ -34,7 +34,9 @@ export const getConversationMessages = asyncHandler(async (req: Request, res: Re
 });
 
 export const getActiveConversations = asyncHandler(async (req: Request, res: Response) => {
+  console.log('🔍 Admin requesting active conversations');
   const conversations = await presenter.getActiveConversations();
+  console.log('📤 Returning', conversations.length, 'conversations to admin');
   ok(res, conversations);
 });
 

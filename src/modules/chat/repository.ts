@@ -17,7 +17,9 @@ export async function createConversation(conversationData: Partial<ChatConversat
     lastMessage: conversationData.lastMessage
   };
   
+  console.log('💾 Creating conversation:', { customerId: conversation.customerId, status: conversation.status });
   const result = await db.collection<ChatConversation>('chat_conversations').insertOne(conversation);
+  console.log('✅ Conversation created with ID:', result.insertedId.toString());
   return { ...conversation, _id: result.insertedId.toString() };
 }
 
@@ -37,10 +39,13 @@ export async function getConversationByCustomer(customerId: string): Promise<Cha
 
 export async function getActiveConversations(): Promise<ChatConversation[]> {
   const db = await getDb();
-  return db.collection<ChatConversation>('chat_conversations')
+  const conversations = await db.collection<ChatConversation>('chat_conversations')
     .find({ status: { $in: ['active', 'waiting'] } })
     .sort({ updatedAt: -1 })
     .toArray();
+  
+  console.log('📊 getActiveConversations - Found:', conversations.length, 'conversations');
+  return conversations;
 }
 
 export async function updateConversation(conversationId: string, updates: Partial<ChatConversation>): Promise<ChatConversation | null> {
