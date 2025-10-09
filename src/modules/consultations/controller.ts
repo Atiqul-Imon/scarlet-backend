@@ -5,17 +5,39 @@ import * as presenter from './presenter.js';
 
 // Public route - Submit consultation
 export const submitConsultation = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, mobile, subject, message } = req.body;
+  const { 
+    name, 
+    address, 
+    phone, 
+    email, 
+    age, 
+    gender, 
+    skinType, 
+    mainProblem, 
+    problemDuration, 
+    currentProducts, 
+    images, 
+    preferredContactMethod, 
+    additionalComments 
+  } = req.body;
   
   const ipAddress = req.ip || req.connection.remoteAddress;
   const userAgent = req.get('user-agent');
 
   const consultation = await presenter.submitConsultation({
     name,
+    address,
+    phone,
     email,
-    mobile,
-    subject,
-    message,
+    age: parseInt(age),
+    gender,
+    skinType,
+    mainProblem,
+    problemDuration,
+    currentProducts,
+    images,
+    preferredContactMethod,
+    additionalComments,
     ipAddress,
     userAgent
   });
