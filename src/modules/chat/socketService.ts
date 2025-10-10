@@ -61,20 +61,36 @@ export class ChatSocketService {
         try {
           const user = this.connectedUsers.get(socket.id);
           if (!user) {
+            logger.warn({ socketId: socket.id, conversationId: data.conversationId }, 'User not authenticated when trying to join conversation');
             socket.emit('error', { message: 'Not authenticated' });
             return;
           }
 
+          // Join the conversation room
           socket.join(`conversation_${data.conversationId}`);
           user.conversationId = data.conversationId;
 
-          // Mark messages as read
+          // Mark messages as read for this user
           await presenter.markMessagesAsRead(data.conversationId, user.userId);
 
+          // Confirm join to the user
           socket.emit('joined_conversation', { conversationId: data.conversationId });
-          logger.info(`User ${user.userId} joined conversation ${data.conversationId}`);
+          
+          // Notify other participants in the conversation that this user joined
+          socket.to(`conversation_${data.conversationId}`).emit('user_joined_conversation', {
+            userId: user.userId,
+            userType: user.userType,
+            conversationId: data.conversationId
+          });
+
+          logger.info({ 
+            userId: user.userId, 
+            userType: user.userType, 
+            conversationId: data.conversationId,
+            socketId: socket.id 
+          }, `User joined conversation`);
         } catch (error) {
-          logger.error({ error, data }, 'Failed to join conversation');
+          logger.error({ error, data, socketId: socket.id }, 'Failed to join conversation');
           socket.emit('error', { message: 'Failed to join conversation' });
         }
       });
@@ -88,9 +104,18 @@ export class ChatSocketService {
         try {
           const user = this.connectedUsers.get(socket.id);
           if (!user) {
+            logger.warn({ socketId: socket.id, conversationId: data.conversationId }, 'User not authenticated when trying to send message');
             socket.emit('error', { message: 'Not authenticated' });
             return;
           }
+
+          logger.info({ 
+            userId: user.userId, 
+            userType: user.userType, 
+            conversationId: data.conversationId,
+            contentLength: data.content.length,
+            messageType: data.messageType || 'text'
+          }, 'Sending message');
 
           const message = await presenter.sendMessage(
             data.conversationId,
@@ -100,21 +125,28 @@ export class ChatSocketService {
             data.messageType || 'text'
           );
 
-          // Broadcast message to conversation room
+          // Broadcast message to ALL participants in the conversation room
           this.io.to(`conversation_${data.conversationId}`).emit('new_message', message);
+          
+          logger.info({ 
+            messageId: message._id,
+            conversationId: data.conversationId,
+            senderId: user.userId,
+            senderType: user.userType,
+            room: `conversation_${data.conversationId}`
+          }, 'Message broadcasted to conversation room');
 
-          // Notify admin room if customer sent message
+          // Notify admin room if customer sent message (for notification purposes)
           if (user.userType === 'customer') {
             this.io.to('admin_room').emit('customer_message', {
               conversationId: data.conversationId,
               message,
               customerId: user.userId
             });
+            logger.info({ conversationId: data.conversationId }, 'Notified admin room of customer message');
           }
-
-          logger.info(`Message sent in conversation ${data.conversationId} by ${user.userId}`);
         } catch (error) {
-          logger.error({ error, data }, 'Failed to send message');
+          logger.error({ error, data, socketId: socket.id }, 'Failed to send message');
           socket.emit('error', { message: 'Failed to send message' });
         }
       });
