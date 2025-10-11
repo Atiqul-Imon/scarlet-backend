@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { asyncHandler } from '../../core/http/asyncHandler';
-import { authenticate } from '../../core/middleware/auth';
-import { createPayment, verifyPayment, handleIPN, processRefund } from './service.sslcommerz';
+import { asyncHandler } from '../../core/http/asyncHandler.js';
+import { authenticate } from '../../core/middleware/auth.js';
+import { createPayment, verifyPayment, handleIPN, processRefund } from './service.sslcommerz.js';
 
 const router = Router();
 
