@@ -85,7 +85,12 @@ export class SSLCommerzGateway {
     error?: string;
   }> {
     try {
-      logger.info({ orderId: paymentData.orderId }, 'Initiating SSLCommerz payment');
+      logger.info({ 
+        orderId: paymentData.orderId,
+        successUrl: this.config.successUrl,
+        failUrl: this.config.failUrl,
+        cancelUrl: this.config.cancelUrl
+      }, 'Initiating SSLCommerz payment with callback URLs');
 
       // Prepare payment parameters
       const params = {
@@ -403,11 +408,8 @@ export class SSLCommerzGateway {
   }
 }
 
-// Export singleton instance
-let sslcommerzInstance: SSLCommerzGateway | null = null;
-
+// Create fresh gateway instance every time to ensure latest environment variables
 export function getSSLCommerzGateway(): SSLCommerzGateway {
-  // Always create fresh config from environment variables to ensure latest values
   const config: SSLCommerzConfig = {
     storeId: process.env.SSLCOMMERZ_STORE_ID || '',
     storePassword: process.env.SSLCOMMERZ_STORE_PASSWORD || '',
@@ -418,22 +420,14 @@ export function getSSLCommerzGateway(): SSLCommerzGateway {
     ipnUrl: process.env.SSLCOMMERZ_IPN_URL || 'http://localhost:4000/api/payments/webhook/sslcommerz',
   };
 
-  // Create new instance if config changed or instance doesn't exist
-  if (!sslcommerzInstance || 
-      sslcommerzInstance['config'].successUrl !== config.successUrl ||
-      sslcommerzInstance['config'].failUrl !== config.failUrl ||
-      sslcommerzInstance['config'].cancelUrl !== config.cancelUrl) {
-    
-    logger.info({ 
-      successUrl: config.successUrl,
-      failUrl: config.failUrl,
-      cancelUrl: config.cancelUrl
-    }, 'Creating new SSLCommerz gateway instance with updated config');
-    
-    sslcommerzInstance = new SSLCommerzGateway(config);
-  }
-
-  return sslcommerzInstance;
+  logger.info({ 
+    successUrl: config.successUrl,
+    failUrl: config.failUrl,
+    cancelUrl: config.cancelUrl,
+    timestamp: new Date().toISOString()
+  }, 'Creating fresh SSLCommerz gateway instance with current environment variables');
+  
+  return new SSLCommerzGateway(config);
 }
 
 export default SSLCommerzGateway;
