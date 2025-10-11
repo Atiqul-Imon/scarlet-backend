@@ -407,17 +407,29 @@ export class SSLCommerzGateway {
 let sslcommerzInstance: SSLCommerzGateway | null = null;
 
 export function getSSLCommerzGateway(): SSLCommerzGateway {
-  if (!sslcommerzInstance) {
-    const config: SSLCommerzConfig = {
-      storeId: process.env.SSLCOMMERZ_STORE_ID || '',
-      storePassword: process.env.SSLCOMMERZ_STORE_PASSWORD || '',
-      sandbox: process.env.SSLCOMMERZ_SANDBOX === 'true',
-      successUrl: process.env.SSLCOMMERZ_SUCCESS_URL || 'http://localhost:3000/payment/success',
-      failUrl: process.env.SSLCOMMERZ_FAIL_URL || 'http://localhost:3000/payment/failed',
-      cancelUrl: process.env.SSLCOMMERZ_CANCEL_URL || 'http://localhost:3000/payment/cancelled',
-      ipnUrl: process.env.SSLCOMMERZ_IPN_URL || 'http://localhost:4000/api/payments/webhook/sslcommerz',
-    };
+  // Always create fresh config from environment variables to ensure latest values
+  const config: SSLCommerzConfig = {
+    storeId: process.env.SSLCOMMERZ_STORE_ID || '',
+    storePassword: process.env.SSLCOMMERZ_STORE_PASSWORD || '',
+    sandbox: process.env.SSLCOMMERZ_SANDBOX === 'true',
+    successUrl: process.env.SSLCOMMERZ_SUCCESS_URL || 'http://localhost:3000/payment/success',
+    failUrl: process.env.SSLCOMMERZ_FAIL_URL || 'http://localhost:3000/payment/failed',
+    cancelUrl: process.env.SSLCOMMERZ_CANCEL_URL || 'http://localhost:3000/payment/cancelled',
+    ipnUrl: process.env.SSLCOMMERZ_IPN_URL || 'http://localhost:4000/api/payments/webhook/sslcommerz',
+  };
 
+  // Create new instance if config changed or instance doesn't exist
+  if (!sslcommerzInstance || 
+      sslcommerzInstance['config'].successUrl !== config.successUrl ||
+      sslcommerzInstance['config'].failUrl !== config.failUrl ||
+      sslcommerzInstance['config'].cancelUrl !== config.cancelUrl) {
+    
+    logger.info({ 
+      successUrl: config.successUrl,
+      failUrl: config.failUrl,
+      cancelUrl: config.cancelUrl
+    }, 'Creating new SSLCommerz gateway instance with updated config');
+    
     sslcommerzInstance = new SSLCommerzGateway(config);
   }
 
