@@ -36,9 +36,19 @@ router.post('/create', authenticate, asyncHandler(async (req, res) => {
     });
   } catch (error: any) {
     console.error('Payment creation error:', error);
+    const errorMessage = error?.message || 'Failed to create payment session';
+    const errorDetails = error?.response?.data || error?.details || null;
+    
+    console.error('Error details:', {
+      message: errorMessage,
+      details: errorDetails,
+      stack: error?.stack
+    });
+    
     res.status(500).json({
       success: false,
-      message: 'Failed to create payment session'
+      message: errorMessage,
+      details: errorDetails
     });
   }
 }));
