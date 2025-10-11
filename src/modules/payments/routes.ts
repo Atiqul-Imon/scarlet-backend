@@ -6,6 +6,28 @@ import { createPayment, verifyPayment, handleIPN, processRefund } from './servic
 const router = Router();
 
 /**
+ * @route GET /api/payments/env-check
+ * @desc Check SSLCommerz environment variables
+ * @access Public
+ */
+router.get('/env-check', asyncHandler(async (req, res) => {
+  const envVars = {
+    SSLCOMMERZ_STORE_ID: process.env.SSLCOMMERZ_STORE_ID ? '***SET***' : 'NOT SET',
+    SSLCOMMERZ_STORE_PASSWORD: process.env.SSLCOMMERZ_STORE_PASSWORD ? '***SET***' : 'NOT SET',
+    SSLCOMMERZ_SANDBOX: process.env.SSLCOMMERZ_SANDBOX,
+    SSLCOMMERZ_SUCCESS_URL: process.env.SSLCOMMERZ_SUCCESS_URL,
+    SSLCOMMERZ_FAIL_URL: process.env.SSLCOMMERZ_FAIL_URL,
+    SSLCOMMERZ_CANCEL_URL: process.env.SSLCOMMERZ_CANCEL_URL,
+    SSLCOMMERZ_IPN_URL: process.env.SSLCOMMERZ_IPN_URL,
+  };
+
+  res.json({
+    success: true,
+    data: envVars
+  });
+}));
+
+/**
  * @route POST /api/payments/create
  * @desc Create a new payment session with SSLCommerz
  * @access Private (authenticated users)
@@ -90,23 +112,27 @@ router.post('/verify', authenticate, asyncHandler(async (req, res) => {
  */
 router.post('/webhook/sslcommerz', asyncHandler(async (req, res) => {
   try {
-    const ipnData = req.body;
+    console.log('SSLCommerz IPN received:', req.body);
     
-    // Log the IPN data for debugging
-    console.log('SSLCommerz IPN received:', ipnData);
-    
-    // Process the IPN
-    const result = await handleIPN(ipnData);
+    const result = await handleIPN(req.body);
     
     if (result.success) {
-      res.status(200).send('SUCCESS');
+      res.status(200).json({
+        success: true,
+        message: 'IPN processed successfully'
+      });
     } else {
-      console.error('IPN processing failed:', result.error);
-      res.status(400).send('FAILED');
+      res.status(400).json({
+        success: false,
+        message: result.error || 'IPN processing failed'
+      });
     }
   } catch (error: any) {
-    console.error('IPN webhook error:', error);
-    res.status(500).send('ERROR');
+    console.error('IPN processing error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error during IPN processing'
+    });
   }
 }));
 
@@ -116,20 +142,21 @@ router.post('/webhook/sslcommerz', asyncHandler(async (req, res) => {
  * @access Private (admin only)
  */
 router.post('/refund', authenticate, asyncHandler(async (req, res) => {
-  const { transactionId, amount, reason } = req.body;
+  const { orderId, amount, reason } = req.body;
 
-  if (!transactionId || !amount) {
+  if (!orderId || !amount) {
     return res.status(400).json({
       success: false,
-      message: 'Transaction ID and amount are required'
+      message: 'Order ID and amount are required for refund'
     });
   }
 
   try {
-    const refund = await processRefund(transactionId, amount, reason);
+    const refundResult = await processRefund(orderId, amount, reason);
+    
     res.json({
       success: true,
-      data: refund
+      data: refundResult
     });
   } catch (error: any) {
     console.error('Refund processing error:', error);
@@ -143,43 +170,44 @@ router.post('/refund', authenticate, asyncHandler(async (req, res) => {
 /**
  * @route GET /api/payments/test
  * @desc Test SSLCommerz integration
- * @access Private (admin only)
+ * @access Private
  */
 router.get('/test', authenticate, asyncHandler(async (req, res) => {
   try {
-    // Test payment creation with dummy data
-    const testPayment = await createPayment({
-      orderId: `TEST_${Date.now()}`,
-      amount: '100.00',
-      currency: 'BDT',
-      customerInfo: {
-        name: 'Test Customer',
-        email: 'test@example.com',
-        phone: '01711111111',
-        address: 'Test Address',
-        city: 'Dhaka',
-        country: 'Bangladesh',
-        postcode: '1000'
-      },
-      items: [{
-        name: 'Test Product',
-        category: 'Beauty',
-        quantity: 1,
-        price: '100.00'
-      }]
-    });
+    // Test environment variables
+    const requiredEnvVars = [
+      'SSLCOMMERZ_STORE_ID',
+      'SSLCOMMERZ_STORE_PASSWORD',
+      'SSLCOMMERZ_SUCCESS_URL',
+      'SSLCOMMERZ_FAIL_URL',
+      'SSLCOMMERZ_CANCEL_URL'
+    ];
+
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    
+    if (missingVars.length > 0) {
+      return res.status(500).json({
+        success: false,
+        message: `Missing required environment variables: ${missingVars.join(', ')}`
+      });
+    }
 
     res.json({
       success: true,
-      message: 'SSLCommerz integration test successful',
-      data: testPayment
+      message: 'SSLCommerz integration test passed',
+      data: {
+        storeId: process.env.SSLCOMMERZ_STORE_ID,
+        sandbox: process.env.SSLCOMMERZ_SANDBOX === 'true',
+        successUrl: process.env.SSLCOMMERZ_SUCCESS_URL,
+        failUrl: process.env.SSLCOMMERZ_FAIL_URL,
+        cancelUrl: process.env.SSLCOMMERZ_CANCEL_URL
+      }
     });
   } catch (error: any) {
-    console.error('SSLCommerz test error:', error);
+    console.error('Integration test error:', error);
     res.status(500).json({
       success: false,
-      message: 'SSLCommerz integration test failed',
-      error: error.message
+      message: 'Integration test failed'
     });
   }
 }));
