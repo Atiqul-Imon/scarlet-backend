@@ -128,6 +128,17 @@ export class SSLCommerzGateway {
         value_a: paymentData.orderId, // Custom field for order tracking
       };
 
+      // Log the actual parameters being sent to SSLCommerz
+      logger.info({ 
+        orderId: paymentData.orderId,
+        sslcommerzParams: {
+          success_url: params.success_url,
+          fail_url: params.fail_url,
+          cancel_url: params.cancel_url,
+          ipn_url: params.ipn_url
+        }
+      }, 'Sending payment request to SSLCommerz with callback URLs');
+
       // Make API request
       const response = await axios.post<SSLCommerzResponse>(
         `${this.baseUrl}/gwprocess/v4/api.php`,

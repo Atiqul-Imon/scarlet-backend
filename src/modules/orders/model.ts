@@ -51,6 +51,10 @@ export interface Order {
   estimatedDelivery?: string;
   deliveredAt?: string;
   isGuestOrder?: boolean;
+  // Courier shipment info
+  shipmentId?: string;           // Reference to shipment document
+  courierService?: string;        // pathao, redx, steadfast
+  courierTrackingUrl?: string;    // Public tracking URL
   createdAt?: string;
   updatedAt?: string;
 }

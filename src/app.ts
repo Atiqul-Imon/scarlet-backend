@@ -26,6 +26,7 @@ import { router as blogRoutes } from './modules/blog/routes.js';
 import { router as brandRoutes } from './modules/brands/routes.js';
 import { router as chatRoutes } from './modules/chat/routes.js';
 import { router as consultationRoutes } from './modules/consultations/routes.js';
+import { router as shippingRoutes } from './modules/shipping/routes.js';
 import { rateLimits } from './core/middleware/rateLimiting.js';
 import { 
   noCacheCart, 
@@ -160,6 +161,7 @@ export function createApp() {
   app.use('/api/brands', shortCacheSemiStatic, brandRoutes);
   app.use('/api/chat', noCacheAuth, chatRoutes);
   app.use('/api/consultations', noCacheAuth, consultationRoutes);
+  app.use('/api/shipping', noCacheOrders, shippingRoutes);
 
   app.use((req, res) => res.status(404).json({ success: false, error: { message: 'Not Found' } }));
   app.use((err: any, req: any, res: any, _next: any) => { try { req.log?.error?.(err); } catch {} res.status(500).json({ success: false, error: { message: 'Internal Server Error' } }); });

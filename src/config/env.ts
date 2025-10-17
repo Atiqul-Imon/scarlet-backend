@@ -90,7 +90,26 @@ export const env = {
   accessTokenExpiry: process.env.ACCESS_TOKEN_EXPIRY || '15m',
   refreshTokenExpiry: process.env.REFRESH_TOKEN_EXPIRY || '7d',
   passwordResetTokenExpiry: process.env.PASSWORD_RESET_TOKEN_EXPIRY || '1h',
-  emailVerificationTokenExpiry: process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || '72h'
+  emailVerificationTokenExpiry: process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || '72h',
+  
+  // Courier Service Configurations
+  // Pathao Configuration
+  pathaoClientId: process.env.PATHAO_CLIENT_ID,
+  pathaoClientSecret: process.env.PATHAO_CLIENT_SECRET,
+  pathaoStoreId: process.env.PATHAO_STORE_ID,
+  pathaoSandbox: process.env.PATHAO_SANDBOX || 'true',
+  
+  // Redx Configuration
+  redxApiKey: process.env.REDX_API_KEY,
+  redxSecretKey: process.env.REDX_SECRET_KEY,
+  redxStoreId: process.env.REDX_STORE_ID,
+  redxSandbox: process.env.REDX_SANDBOX || 'true',
+  
+  // Steadfast Configuration
+  steadfastApiKey: process.env.STEADFAST_API_KEY,
+  steadfastSecretKey: process.env.STEADFAST_SECRET_KEY,
+  steadfastStoreId: process.env.STEADFAST_STORE_ID,
+  steadfastSandbox: process.env.STEADFAST_SANDBOX || 'true'
 };
 
 export { isProduction };
