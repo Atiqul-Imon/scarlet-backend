@@ -7,9 +7,7 @@ import pinoHttp from 'pino-http';
 import { logger } from './core/logging/logger.js';
 import { authenticate } from './core/middleware/auth.js';
 import { env, isProduction } from './config/env.js';
-// import { securityMiddleware, rateLimiters } from './core/middleware/security.js';
-import { advancedRedis } from './core/cache/advancedRedisClient.js';
-// import { performanceMonitor, errorTracker, coreWebVitalsMiddleware } from './core/monitoring/performanceMonitor.js';
+// Phase 3 files temporarily removed for stable production build
 
 import { router as healthRoutes } from './modules/health/routes.js';
 import { router as authRoutes } from './modules/auth/routes.js';
