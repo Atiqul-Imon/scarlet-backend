@@ -4,12 +4,13 @@ import { logger } from '../logging/logger.js';
 
 let client: MongoClient | null = null;
 
-// MongoDB Atlas optimized connection options
+// MongoDB Atlas optimized connection options with enhanced pooling
 const mongoOptions: MongoClientOptions = {
-  // Connection pool settings
-  maxPoolSize: 20,
-  minPoolSize: 5,
+  // Connection pool settings (optimized for production)
+  maxPoolSize: 50, // Increased for better concurrency
+  minPoolSize: 10, // Keep more connections warm
   maxIdleTimeMS: 30000,
+  maxConnecting: 3, // Limit simultaneous connection attempts
   
   // Connection timeout settings
   serverSelectionTimeoutMS: 5000,

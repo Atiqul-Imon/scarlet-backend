@@ -7,6 +7,9 @@ import pinoHttp from 'pino-http';
 import { logger } from './core/logging/logger.js';
 import { authenticate } from './core/middleware/auth.js';
 import { env, isProduction } from './config/env.js';
+// import { securityMiddleware, rateLimiters } from './core/middleware/security.js';
+import { advancedRedis } from './core/cache/advancedRedisClient.js';
+// import { performanceMonitor, errorTracker, coreWebVitalsMiddleware } from './core/monitoring/performanceMonitor.js';
 
 import { router as healthRoutes } from './modules/health/routes.js';
 import { router as authRoutes } from './modules/auth/routes.js';
@@ -122,6 +125,13 @@ export function createApp() {
     }
   }));
   
+  // Apply performance monitoring (Phase 3 - TODO: Fix TypeScript issues)
+  // app.use(performanceMonitor.middleware());
+  // app.use(coreWebVitalsMiddleware);
+  
+  // Apply security middleware (Phase 3 - TODO: Fix TypeScript issues)
+  // securityMiddleware.forEach(middleware => app.use(middleware));
+  
   // General rate limiting
   app.use(rateLimits.general);
 
@@ -163,8 +173,25 @@ export function createApp() {
   app.use('/api/consultations', noCacheAuth, consultationRoutes);
   app.use('/api/shipping', noCacheOrders, shippingRoutes);
 
+  // 404 handler
   app.use((req, res) => res.status(404).json({ success: false, error: { message: 'Not Found' } }));
-  app.use((err: any, req: any, res: any, _next: any) => { try { req.log?.error?.(err); } catch {} res.status(500).json({ success: false, error: { message: 'Internal Server Error' } }); });
+  
+  // Error tracking middleware (Phase 3 - TODO: Fix TypeScript issues)
+  // app.use(errorTracker);
+  
+  // Global error handler
+  app.use((err: any, req: any, res: any, _next: any) => { 
+    try { 
+      req.log?.error?.(err); 
+    } catch {} 
+    res.status(err.statusCode || 500).json({ 
+      success: false, 
+      error: { 
+        message: isProduction ? 'Internal Server Error' : err.message 
+      } 
+    }); 
+  });
+  
   return app;
 }
 
