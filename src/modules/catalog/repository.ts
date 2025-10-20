@@ -1,5 +1,6 @@
 import { getDb } from '../../core/db/mongoClient.js';
 import type { Category, Product, CategoryTree, CategoryHierarchy } from './model.js';
+import { catalogCache } from './cache.js';
 
 export async function listCategories(): Promise<Category[]> {
   const db = await getDb();
@@ -12,26 +13,66 @@ export async function listProducts(): Promise<Product[]> {
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
+  // Try cache first
+  const cached = await catalogCache.getProductBySlug(slug);
+  if (cached) {
+    return cached;
+  }
+  
+  // Fetch from database
   const db = await getDb();
-  return db.collection<Product>('products').findOne({ slug, isActive: { $ne: false } });
+  const product = await db.collection<Product>('products').findOne({ slug, isActive: { $ne: false } });
+  
+  // Cache the result if found
+  if (product) {
+    await catalogCache.setProductBySlug(slug, product);
+  }
+  
+  return product;
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
+  // Try cache first
+  const cached = await catalogCache.getProductById(id);
+  if (cached) {
+    return cached;
+  }
+  
+  // Fetch from database
   const db = await getDb();
   const { ObjectId } = await import('mongodb');
-  return db.collection<Product>('products').findOne({ _id: new ObjectId(id), isActive: { $ne: false } } as any);
+  const product = await db.collection<Product>('products').findOne({ _id: new ObjectId(id), isActive: { $ne: false } } as any);
+  
+  // Cache the result if found
+  if (product) {
+    await catalogCache.setProductBySlug(product.slug, product);
+  }
+  
+  return product;
 }
 
 export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
+  // Try cache first
+  const cached = await catalogCache.getProductsByCategory(categoryId);
+  if (cached) {
+    return cached;
+  }
+  
+  // Fetch from database
   const db = await getDb();
   const { ObjectId } = await import('mongodb');
-  return db.collection<Product>('products')
+  const products = await db.collection<Product>('products')
     .find({ 
       categoryIds: { $in: [categoryId] }, 
       isActive: { $ne: false } 
     })
     .limit(100)
     .toArray();
+  
+  // Cache the results
+  await catalogCache.setProductsByCategory(categoryId, products);
+  
+  return products;
 }
 
 export async function searchProducts(query: string): Promise<Product[]> {
@@ -51,14 +92,26 @@ export async function searchProducts(query: string): Promise<Product[]> {
 }
 
 export async function getProductsByHomepageSection(homepageSection: string): Promise<Product[]> {
+  // Try cache first
+  const cached = await catalogCache.getProductsBySection(homepageSection);
+  if (cached) {
+    return cached;
+  }
+  
+  // Fetch from database
   const db = await getDb();
-  return db.collection<Product>('products')
+  const products = await db.collection<Product>('products')
     .find({ 
       homepageSection: homepageSection as any,
       isActive: { $ne: false } 
     })
     .limit(20)
     .toArray();
+  
+  // Cache the results
+  await catalogCache.setProductsBySection(homepageSection, products);
+  
+  return products;
 }
 
 export async function insertCategories(categories: Category[]): Promise<void> {

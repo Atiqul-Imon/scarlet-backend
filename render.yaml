@@ -1,4 +1,5 @@
 services:
+  # Backend API Service
   - type: web
     name: scarlet-backend
     env: node
@@ -15,6 +16,11 @@ services:
         fromDatabase:
           name: scarlet-mongodb
           property: connectionString
+      # Redis URL - Add via Render Dashboard after creating Upstash Redis
+      # Get from: https://console.upstash.com/
+      # Format: redis://default:password@endpoint.upstash.io:6379
+      # - key: REDIS_URL
+      #   value: (Add this manually in Render Dashboard)
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
