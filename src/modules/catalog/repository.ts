@@ -105,7 +105,7 @@ export async function getProductsByHomepageSection(homepageSection: string): Pro
       homepageSection: homepageSection as any,
       isActive: { $ne: false } 
     })
-    .limit(20)
+    .limit(30)
     .toArray();
   
   // Cache the results

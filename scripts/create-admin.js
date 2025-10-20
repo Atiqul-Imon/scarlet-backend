@@ -2,7 +2,13 @@ import { MongoClient } from 'mongodb';
 import argon2 from 'argon2';
 
 async function createAdmin() {
-  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb+srv://imonatikulislam:1LhIjsSyfIWCVlgz@cluster0.08anqce.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+  const mongoUri = process.env.MONGO_URI;
+  
+  if (!mongoUri) {
+    console.error('❌ Error: MONGO_URI not found in .env file');
+    console.error('Please set MONGO_URI in your .env file');
+    process.exit(1);
+  }
   const dbName = process.env.DB_NAME || 'scarlet';
   
   const client = new MongoClient(mongoUri);

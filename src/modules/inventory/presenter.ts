@@ -1,6 +1,7 @@
 import { AppError } from '../../core/errors/AppError.js';
 import * as repo from './repository.js';
 import type { InventoryItem, StockMovement, LowStockAlert, CreateInventoryItemRequest, UpdateStockRequest, StockAdjustmentRequest } from './model.js';
+import { catalogCache } from '../catalog/cache.js';
 
 export async function createInventoryItem(data: CreateInventoryItemRequest): Promise<InventoryItem> {
   // Check if inventory item already exists
@@ -102,6 +103,9 @@ export async function adjustStock(data: UpdateStockRequest): Promise<InventoryIt
     await createLowStockAlert(updated);
   }
   
+  // Invalidate product cache to ensure fresh stock data
+  await catalogCache.invalidateProduct(data.productId);
+  
   return updated;
 }
 
@@ -126,6 +130,9 @@ export async function reserveStock(productId: string, quantity: number): Promise
     });
   }
   
+  // Invalidate product cache to ensure fresh stock data
+  await catalogCache.invalidateProduct(productId);
+  
   return true;
 }
 
@@ -149,6 +156,9 @@ export async function unreserveStock(productId: string, quantity: number): Promi
       userId: 'system',
     });
   }
+  
+  // Invalidate product cache to ensure fresh stock data
+  await catalogCache.invalidateProduct(productId);
   
   return true;
 }
@@ -200,5 +210,8 @@ export async function processOrderStockReduction(orderItems: Array<{ productId: 
     
     // Then reduce the actual stock
     await repo.adjustStock(item.productId, item.quantity, 'out');
+    
+    // Invalidate product cache to ensure fresh stock data
+    await catalogCache.invalidateProduct(item.productId);
   }
 }
