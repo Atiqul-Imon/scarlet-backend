@@ -21,9 +21,15 @@ export async function getProfile(userId: string) {
   };
 }
 
-export async function updateProfile(userId: string, firstName: string, lastName: string) {
-  await repo.updateProfile(userId, { firstName, lastName });
-  return { updated: true };
+export async function updateProfile(userId: string, updates: {
+  firstName: string;
+  lastName?: string;
+  phone?: string;
+  preferences?: any;
+  dateOfBirth?: string;
+}) {
+  await repo.updateProfile(userId, updates);
+  return await getProfile(userId);
 }
 
 

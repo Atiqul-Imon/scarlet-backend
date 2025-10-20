@@ -22,7 +22,7 @@ services:
       - key: BCRYPT_SALT_ROUNDS
         value: "12"
       - key: CORS_ORIGIN
-        value: "https://your-frontend.vercel.app"
+        value: "https://scarletunlimited.net"
       - key: API_RATE_LIMIT
         value: "100"
       - key: MAX_FILE_SIZE

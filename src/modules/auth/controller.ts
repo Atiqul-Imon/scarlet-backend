@@ -351,4 +351,70 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
   }
 });
 
+// Send phone OTP
+export const sendPhoneOtp = asyncHandler(async (req: Request, res: Response) => {
+  const { phone } = req.body;
+  const userId = req.user?._id?.toString();
+
+  if (!userId) {
+    return fail(res, { 
+      message: 'Authentication required',
+      code: 'AUTH_REQUIRED' 
+    }, 401);
+  }
+
+  if (!phone) {
+    return fail(res, { 
+      message: 'Phone number is required',
+      code: 'PHONE_REQUIRED' 
+    }, 400);
+  }
+
+  try {
+    const result = await presenter.sendPhoneOtp(userId, phone);
+    ok(res, result);
+  } catch (error: any) {
+    return fail(res, { 
+      message: error.message || 'Failed to send OTP',
+      code: 'OTP_SEND_FAILED' 
+    }, 500);
+  }
+});
+
+// Verify phone OTP
+export const verifyPhoneOtp = asyncHandler(async (req: Request, res: Response) => {
+  const { phone, otp } = req.body;
+  const userId = req.user?._id?.toString();
+
+  if (!userId) {
+    return fail(res, { 
+      message: 'Authentication required',
+      code: 'AUTH_REQUIRED' 
+    }, 401);
+  }
+
+  if (!phone || !otp) {
+    return fail(res, { 
+      message: 'Phone number and OTP are required',
+      code: 'PHONE_OTP_REQUIRED' 
+    }, 400);
+  }
+
+  try {
+    const result = await presenter.verifyPhoneOtp(userId, phone, otp);
+    ok(res, result);
+  } catch (error: any) {
+    if (error.message.includes('Invalid') || error.message.includes('expired')) {
+      return fail(res, { 
+        message: 'Invalid or expired OTP',
+        code: 'INVALID_OTP' 
+      }, 400);
+    }
+    return fail(res, { 
+      message: error.message || 'Failed to verify OTP',
+      code: 'OTP_VERIFY_FAILED' 
+    }, 500);
+  }
+});
+
 

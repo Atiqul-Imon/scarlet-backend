@@ -7,6 +7,7 @@ export const router = Router();
 // Customer routes (require authentication - registered users only)
 router.post('/conversations', requireAuth, controller.startConversation);
 router.post('/messages', requireAuth, controller.sendMessage);
+router.get('/conversations', requireAuth, controller.getUserConversations);
 router.get('/conversations/:conversationId/messages', requireAuth, controller.getConversationMessages);
 router.post('/conversations/:conversationId/read', requireAuth, controller.markMessagesAsRead);
 router.get('/users/:userId/unread-count/:userType', requireAuth, controller.getUnreadCount);

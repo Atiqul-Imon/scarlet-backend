@@ -41,6 +41,8 @@ export const env = {
   allowedOrigins: [
     process.env.CORS_ORIGIN,
     process.env.FRONTEND_URL,
+    'https://scarletunlimited.net',
+    'https://www.scarletunlimited.net',
     'https://scarlet-frontend.vercel.app',
     'https://scarlet-frontend.vercel.app/',
     'http://localhost:3000',

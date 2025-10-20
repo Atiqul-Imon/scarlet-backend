@@ -103,6 +103,23 @@ export async function getActiveConversations(): Promise<ChatConversation[]> {
   }
 }
 
+export async function getUserConversations(userId: string, userType: 'customer' | 'admin'): Promise<ChatConversation[]> {
+  try {
+    if (userType === 'admin') {
+      // Admins can see all conversations
+      return await repo.getActiveConversations();
+    } else {
+      // Customers can only see their own conversations
+      const conversation = await repo.getConversationByCustomer(userId);
+      return conversation ? [conversation] : [];
+    }
+  } catch (error) {
+    logger.error({ error, userId, userType }, 'Failed to get user conversations');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to get user conversations', { code: 'USER_CONVERSATIONS_GET_ERROR' });
+  }
+}
+
 export async function getConversationByCustomer(customerId: string): Promise<ChatConversation | null> {
   try {
     return await repo.getConversationByCustomer(customerId);

@@ -11,6 +11,7 @@ export interface User {
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
   avatar?: string;
+  dateOfBirth?: string;
   preferences?: {
     newsletter: boolean;
     smsNotifications: boolean;

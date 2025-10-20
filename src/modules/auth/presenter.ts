@@ -17,6 +17,31 @@ import { tokenManager } from '../../core/cache/tokenManager.js';
 // Legacy token blacklist (deprecated - use tokenManager instead)
 export const tokenBlacklist = new Set<string>();
 
+// OTP Storage (In-memory for development - replace with Redis in production)
+interface OtpData {
+  otp: string;
+  phone: string;
+  userId: string;
+  expiresAt: Date;
+}
+
+const otpStore = new Map<string, OtpData>();
+
+// Generate 4-digit OTP
+const generateOtp = (): string => {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+};
+
+// Clean expired OTPs
+const cleanExpiredOtps = () => {
+  const now = new Date();
+  for (const [key, data] of otpStore.entries()) {
+    if (data.expiresAt < now) {
+      otpStore.delete(key);
+    }
+  }
+};
+
 // Helper functions
 const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -412,6 +437,100 @@ export async function getUserProfile(userId: string): Promise<Omit<User, 'passwo
     return sanitizeUser(user);
   } catch (error) {
     logger.error({ error, userId }, 'Get user profile failed');
+    throw error;
+  }
+}
+
+// Send phone OTP
+export async function sendPhoneOtp(userId: string, phone: string): Promise<{ message: string; otp?: string }> {
+  try {
+    // Clean expired OTPs
+    cleanExpiredOtps();
+
+    // Generate 4-digit OTP
+    const otp = generateOtp();
+    
+    // Store OTP with 5-minute expiry
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const otpKey = `${userId}:${phone}`;
+    
+    otpStore.set(otpKey, {
+      otp,
+      phone,
+      userId,
+      expiresAt,
+    });
+
+    logger.info({ userId, phone, otp }, 'OTP generated for phone verification');
+
+    // In development mode, return the OTP in the response
+    // In production, this should send SMS via external service
+    if (env.nodeEnv === 'development') {
+      return {
+        message: 'OTP sent successfully (Development Mode)',
+        otp, // Return OTP for development
+      };
+    }
+
+    // TODO: Integrate with SMS service (e.g., Twilio, AWS SNS, etc.)
+    // await sendSMS(phone, `Your verification code is: ${otp}`);
+
+    return {
+      message: 'OTP sent successfully via SMS',
+    };
+  } catch (error) {
+    logger.error({ error, userId, phone }, 'Send phone OTP failed');
+    throw new AppError('Failed to send OTP', { 
+      status: 500, 
+      code: 'OTP_SEND_FAILED' 
+    });
+  }
+}
+
+// Verify phone OTP
+export async function verifyPhoneOtp(userId: string, phone: string, otp: string): Promise<{ message: string; verified: boolean }> {
+  try {
+    // Clean expired OTPs
+    cleanExpiredOtps();
+
+    const otpKey = `${userId}:${phone}`;
+    const storedOtpData = otpStore.get(otpKey);
+
+    if (!storedOtpData) {
+      throw new AppError('OTP not found or expired', { 
+        status: 400, 
+        code: 'OTP_NOT_FOUND' 
+      });
+    }
+
+    // Check if OTP matches
+    if (storedOtpData.otp !== otp) {
+      throw new AppError('Invalid OTP', { 
+        status: 400, 
+        code: 'INVALID_OTP' 
+      });
+    }
+
+    // Check if OTP is expired
+    if (storedOtpData.expiresAt < new Date()) {
+      otpStore.delete(otpKey);
+      throw new AppError('OTP has expired', { 
+        status: 400, 
+        code: 'OTP_EXPIRED' 
+      });
+    }
+
+    // OTP is valid, remove it from store
+    otpStore.delete(otpKey);
+
+    logger.info({ userId, phone }, 'Phone OTP verified successfully');
+
+    return {
+      message: 'Phone number verified successfully',
+      verified: true,
+    };
+  } catch (error) {
+    logger.error({ error, userId, phone }, 'Verify phone OTP failed');
     throw error;
   }
 }

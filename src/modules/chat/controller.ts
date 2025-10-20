@@ -40,6 +40,20 @@ export const getActiveConversations = asyncHandler(async (req: Request, res: Res
   ok(res, conversations);
 });
 
+export const getUserConversations = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id?.toString();
+  const userType = req.user?.role === 'admin' ? 'admin' : 'customer';
+  
+  if (!userId) {
+    return fail(res, { message: 'User ID is required', code: 'MISSING_USER_ID' }, 400);
+  }
+  
+  console.log('🔍 User requesting conversations:', { userId, userType });
+  const conversations = await presenter.getUserConversations(userId, userType);
+  console.log('📤 Returning', conversations.length, 'conversations to user');
+  ok(res, conversations);
+});
+
 export const getConversationByCustomer = asyncHandler(async (req: Request, res: Response) => {
   const { customerId } = req.params;
   

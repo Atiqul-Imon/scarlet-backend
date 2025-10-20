@@ -17,4 +17,8 @@ router.post('/logout', requireAuth, controller.logout);
 router.post('/change-password', requireAuth, rateLimits.auth, controller.changePassword);
 router.get('/profile', requireAuth, controller.getProfile);
 
+// OTP routes for phone verification
+router.post('/send-phone-otp', requireAuth, rateLimits.auth, controller.sendPhoneOtp);
+router.post('/verify-phone-otp', requireAuth, rateLimits.auth, controller.verifyPhoneOtp);
+
 
