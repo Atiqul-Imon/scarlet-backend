@@ -417,4 +417,60 @@ export const verifyPhoneOtp = asyncHandler(async (req: Request, res: Response) =
   }
 });
 
+// Request OTP for passwordless login
+export const requestLoginOTP = asyncHandler(async (req: Request, res: Response) => {
+  const { identifier } = req.body;
+
+  if (!identifier) {
+    return fail(res, { 
+      message: 'Phone number or email is required',
+      code: 'IDENTIFIER_REQUIRED' 
+    }, 400);
+  }
+
+  try {
+    const result = await presenter.requestLoginOTP(identifier);
+    ok(res, result);
+  } catch (error: any) {
+    if (error.message.includes('not found')) {
+      return fail(res, { 
+        message: 'No account found with this phone/email',
+        code: 'USER_NOT_FOUND' 
+      }, 404);
+    }
+    return fail(res, { 
+      message: error.message || 'Failed to send OTP',
+      code: 'OTP_SEND_FAILED' 
+    }, 500);
+  }
+});
+
+// Verify OTP and login immediately
+export const verifyLoginOTP = asyncHandler(async (req: Request, res: Response) => {
+  const { identifier, otp } = req.body;
+
+  if (!identifier || !otp) {
+    return fail(res, { 
+      message: 'Phone/email and OTP are required',
+      code: 'MISSING_CREDENTIALS' 
+    }, 400);
+  }
+
+  try {
+    const authResponse = await presenter.verifyLoginOTP(identifier, otp);
+    ok(res, authResponse);
+  } catch (error: any) {
+    if (error.message.includes('Invalid') || error.message.includes('expired')) {
+      return fail(res, { 
+        message: 'Invalid or expired OTP',
+        code: 'INVALID_OTP' 
+      }, 400);
+    }
+    return fail(res, { 
+      message: error.message || 'Login failed',
+      code: 'LOGIN_FAILED' 
+    }, 500);
+  }
+});
+
 

@@ -21,4 +21,8 @@ router.get('/profile', requireAuth, controller.getProfile);
 router.post('/send-phone-otp', requireAuth, rateLimits.auth, controller.sendPhoneOtp);
 router.post('/verify-phone-otp', requireAuth, rateLimits.auth, controller.verifyPhoneOtp);
 
+// OTP-based passwordless login
+router.post('/request-login-otp', rateLimits.login, controller.requestLoginOTP);
+router.post('/verify-login-otp', rateLimits.login, controller.verifyLoginOTP);
+
 

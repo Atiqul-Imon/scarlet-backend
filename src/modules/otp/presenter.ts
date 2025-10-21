@@ -38,19 +38,6 @@ function normalizePhone(phone: string): string {
   return cleanPhone;
 }
 
-// Send OTP via SMS (placeholder - will be implemented with real SMS service)
-async function sendOTPSMS(phone: string, code: string): Promise<void> {
-  // TODO: Replace with real SMS service (Twilio, AWS SNS, etc.)
-  // For development, we'll log the OTP to console
-  logger.info({
-    phone,
-    code,
-    message: 'OTP sent via SMS (development mode)'
-  }, 'SMS OTP sent');
-  
-  console.log(`\n📱 OTP for ${phone}: ${code}\n`);
-  console.log('🔐 Development Mode: OTP logged to console instead of sending SMS');
-}
 
 
 // Generate and send OTP
@@ -258,6 +245,25 @@ export async function sendOrderSuccessSMS(phone: string, orderNumber: string): P
   }, 'Order Success SMS sent');
   
   console.log(`\n📱 Order Success SMS for ${phone}:`);
+  console.log(`Message: ${message}`);
+  console.log(`Length: ${message.length} characters\n`);
+  console.log('🔐 SMS logged to console (ready for real SMS integration)');
+}
+
+// Send OTP SMS for login/verification
+export async function sendOTPSMS(phone: string, otp: string): Promise<void> {
+  const message = `Your Scarlet verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`;
+  
+  // TODO: Replace with real SMS service (Twilio, AWS SNS, etc.)
+  logger.info({
+    phone,
+    otp,
+    message,
+    messageLength: message.length
+  }, 'OTP SMS sent');
+  
+  console.log(`\n📱 OTP SMS for ${phone}:`);
+  console.log(`Code: ${otp}`);
   console.log(`Message: ${message}`);
   console.log(`Length: ${message.length} characters\n`);
   console.log('🔐 SMS logged to console (ready for real SMS integration)');

@@ -20,7 +20,8 @@ export const tokenBlacklist = new Set<string>();
 // OTP Storage (In-memory for development - replace with Redis in production)
 interface OtpData {
   otp: string;
-  phone: string;
+  phone?: string; // Optional - can be email instead
+  identifier?: string; // For login OTP (email or phone)
   userId: string;
   expiresAt: Date;
 }
@@ -617,6 +618,130 @@ export async function autoCreateGuestAccount(data: {
   } catch (error) {
     logger.error({ error, phone: data.phone }, 'Failed to auto-create guest account');
     return undefined; // Don't fail order creation if account creation fails
+  }
+}
+
+/**
+ * Request OTP for passwordless login
+ * Works with both email and phone
+ */
+export async function requestLoginOTP(identifier: string): Promise<{ message: string }> {
+  try {
+    const normalizedIdentifier = normalizeIdentifier(identifier);
+    
+    // Find user by email or phone
+    let user = null;
+    if (identifier.includes('@')) {
+      user = await repo.findUserByEmail(normalizedIdentifier);
+    } else {
+      user = await repo.findUserByPhone(normalizedIdentifier);
+    }
+
+    if (!user) {
+      throw new AppError('No account found with this phone/email', { 
+        status: 404, 
+        code: 'USER_NOT_FOUND' 
+      });
+    }
+
+    // Generate 4-digit OTP
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Store OTP
+    const otpData = {
+      otp,
+      identifier: normalizedIdentifier,
+      userId: user._id!.toString(),
+      expiresAt
+    };
+    otpStore.set(normalizedIdentifier, otpData);
+
+    // Send OTP via SMS or email
+    if (identifier.includes('@')) {
+      // TODO: Send email with OTP
+      logger.info({ email: identifier, otp }, 'OTP email would be sent (not implemented yet)');
+    } else {
+      // Send SMS with OTP
+      const { sendOTPSMS } = await import('../otp/presenter.js');
+      await sendOTPSMS(normalizedIdentifier, otp);
+      logger.info({ phone: identifier }, 'Login OTP SMS sent');
+    }
+
+    return {
+      message: `Verification code sent to ${identifier}`
+    };
+  } catch (error) {
+    logger.error({ error, identifier }, 'Failed to send login OTP');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to send verification code', { code: 'OTP_SEND_FAILED' });
+  }
+}
+
+/**
+ * Verify OTP and login user immediately (no password change required)
+ */
+export async function verifyLoginOTP(identifier: string, otp: string): Promise<AuthResponse> {
+  try {
+    const normalizedIdentifier = normalizeIdentifier(identifier);
+    
+    // Get stored OTP
+    const otpData = otpStore.get(normalizedIdentifier);
+    if (!otpData) {
+      throw new AppError('OTP not found or expired', { 
+        status: 400, 
+        code: 'OTP_NOT_FOUND' 
+      });
+    }
+
+    // Check if expired
+    if (otpData.expiresAt < new Date()) {
+      otpStore.delete(normalizedIdentifier);
+      throw new AppError('OTP has expired', { 
+        status: 400, 
+        code: 'OTP_EXPIRED' 
+      });
+    }
+
+    // Verify OTP
+    if (otpData.otp !== otp) {
+      throw new AppError('Invalid OTP', { 
+        status: 400, 
+        code: 'INVALID_OTP' 
+      });
+    }
+
+    // Get user
+    let user = null;
+    if (identifier.includes('@')) {
+      user = await repo.findUserByEmail(normalizedIdentifier);
+    } else {
+      user = await repo.findUserByPhone(normalizedIdentifier);
+    }
+
+    if (!user) {
+      throw new AppError('User not found', { 
+        status: 404, 
+        code: 'USER_NOT_FOUND' 
+      });
+    }
+
+    // Clear used OTP
+    otpStore.delete(normalizedIdentifier);
+
+    // Generate authentication tokens
+    const tokens = await generateTokens(user);
+
+    logger.info({ userId: user._id }, 'User logged in via OTP');
+
+    return {
+      user: sanitizeUser(user),
+      tokens
+    };
+  } catch (error) {
+    logger.error({ error, identifier }, 'Failed to verify login OTP');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Login verification failed', { code: 'LOGIN_VERIFY_FAILED' });
   }
 }
 
