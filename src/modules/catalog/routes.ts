@@ -1,15 +1,16 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../core/http/asyncHandler.js';
 import { rateLimits } from '../../core/middleware/rateLimiting.js';
+import { requireAuth, requireAdmin } from '../../core/middleware/auth.js';
 import * as controller from './controller.js';
 
 export const router = Router();
 
 // Categories
 router.get('/categories', asyncHandler(controller.categories));
-router.post('/categories', asyncHandler(controller.createCategory));
-router.put('/categories/:id', asyncHandler(controller.updateCategory));
-router.delete('/categories/:id', asyncHandler(controller.deleteCategory));
+router.post('/categories', requireAuth, requireAdmin, asyncHandler(controller.createCategory));
+router.put('/categories/:id', requireAuth, requireAdmin, asyncHandler(controller.updateCategory));
+router.delete('/categories/:id', requireAuth, requireAdmin, asyncHandler(controller.deleteCategory));
 
 // Category Hierarchy
 router.get('/categories/tree', asyncHandler(controller.getCategoryTree));
