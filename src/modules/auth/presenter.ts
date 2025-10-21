@@ -537,6 +537,7 @@ export async function verifyPhoneOtp(userId: string, phone: string, otp: string)
 
 /**
  * Auto-create account for guest users who place orders
+ * PHONE is PRIMARY - email is optional in Bangladesh
  * Returns userId if account created successfully, undefined otherwise
  */
 export async function autoCreateGuestAccount(data: {
@@ -546,36 +547,44 @@ export async function autoCreateGuestAccount(data: {
   lastName: string;
 }): Promise<string | undefined> {
   try {
-    // Check if user already exists
-    const normalizedEmail = normalizeIdentifier(data.email);
+    // PHONE is mandatory - normalize it
     const normalizedPhone = normalizeIdentifier(data.phone);
     
-    let existingUser = await repo.findUserByEmail(normalizedEmail);
-    if (existingUser) {
-      logger.info({ email: data.email }, 'User already exists with this email');
-      return existingUser._id?.toString();
-    }
+    // Email is optional - normalize only if provided
+    const normalizedEmail = data.email && data.email.includes('@') 
+      ? normalizeIdentifier(data.email) 
+      : undefined;
     
-    existingUser = await repo.findUserByPhone(normalizedPhone);
+    // Check if user already exists by PHONE (primary identifier)
+    let existingUser = await repo.findUserByPhone(normalizedPhone);
     if (existingUser) {
       logger.info({ phone: data.phone }, 'User already exists with this phone');
       return existingUser._id?.toString();
+    }
+    
+    // Check by email only if provided
+    if (normalizedEmail) {
+      existingUser = await repo.findUserByEmail(normalizedEmail);
+      if (existingUser) {
+        logger.info({ email: data.email }, 'User already exists with this email');
+        return existingUser._id?.toString();
+      }
     }
 
     // Generate a random temporary password
     const tempPassword = crypto.randomBytes(8).toString('hex');
     const passwordHash = await argon2.hash(tempPassword);
 
-    // Create user object
+    // Create user object - PHONE is mandatory, email is optional
     const newUser: User = {
-      email: normalizedEmail,
-      phone: normalizedPhone,
+      phone: normalizedPhone, // PRIMARY identifier
+      email: normalizedEmail, // Optional
       passwordHash,
       firstName: data.firstName.trim(),
       lastName: data.lastName?.trim(),
       role: 'customer',
       isEmailVerified: false,
-      isPhoneVerified: false,
+      isPhoneVerified: true, // Auto-verify phone from order (they received SMS)
       preferences: {
         newsletter: false,
         smsNotifications: true,
@@ -592,15 +601,21 @@ export async function autoCreateGuestAccount(data: {
     
     logger.info({ 
       userId: createdUser._id, 
-      email: data.email 
+      phone: data.phone,
+      hasEmail: !!normalizedEmail
     }, 'Auto-created account for guest user');
 
-    // TODO: Send welcome email with password reset link
-    // await sendWelcomeEmail(data.email, tempPassword);
+    // TODO: Send SMS with account activation instructions
+    // await sendWelcomeSMS(data.phone, createdUser._id);
+    
+    // TODO: If email provided, send welcome email
+    // if (normalizedEmail) {
+    //   await sendWelcomeEmail(normalizedEmail);
+    // }
 
     return createdUser._id?.toString();
   } catch (error) {
-    logger.error({ error, email: data.email }, 'Failed to auto-create guest account');
+    logger.error({ error, phone: data.phone }, 'Failed to auto-create guest account');
     return undefined; // Don't fail order creation if account creation fails
   }
 }

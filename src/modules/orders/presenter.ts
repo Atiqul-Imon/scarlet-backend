@@ -274,13 +274,16 @@ export async function createGuestOrderFromCart(sessionId: string, orderData: Cre
     isGuestOrder: true,
   };
 
-  // Auto-create account for guest if they provided email
+  // Auto-create account for guest if they provided email OR phone
   let autoCreatedUserId: string | undefined;
-  if (orderData.email && orderData.email.includes('@')) {
+  const hasEmail = orderData.email && orderData.email.includes('@');
+  const hasPhone = orderData.phone && orderData.phone.length >= 10;
+  
+  if (hasEmail || hasPhone) {
     try {
       const { autoCreateGuestAccount } = await import('../auth/presenter.js');
       autoCreatedUserId = await autoCreateGuestAccount({
-        email: orderData.email,
+        email: orderData.email || '',
         phone: orderData.phone,
         firstName: orderData.firstName,
         lastName: orderData.lastName || ''
