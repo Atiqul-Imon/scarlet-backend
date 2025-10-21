@@ -356,7 +356,7 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
   const { orderId } = req.params;
   const { status } = req.body;
   
-  const validStatuses = ['pending', 'processing', 'delivered', 'cancelled', 'refunded'];
+  const validStatuses = ['pending', 'confirmed', 'processing', 'delivered', 'cancelled', 'refunded'];
   if (!status || !validStatuses.includes(status)) {
     return fail(res, { message: 'Invalid order status', code: 'INVALID_STATUS' }, 400);
   }

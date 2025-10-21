@@ -259,9 +259,43 @@ export async function getOrderById(orderId: string): Promise<Order> {
 
 export async function updateOrderStatus(
   orderId: string, 
-  status: 'pending' | 'processing' | 'delivered' | 'cancelled' | 'refunded'
+  status: 'pending' | 'confirmed' | 'processing' | 'delivered' | 'cancelled' | 'refunded'
 ): Promise<void> {
   try {
+    // Get the order first to handle inventory
+    const order = await repo.getOrderById(orderId);
+    if (!order) {
+      throw new AppError('Order not found', { code: 'ORDER_NOT_FOUND' });
+    }
+
+    // Handle inventory based on status change
+    if (status === 'cancelled' || status === 'refunded') {
+      // Unreserve stock when order is cancelled/refunded
+      const { unreserveStock } = await import('../inventory/presenter.js');
+      for (const item of order.items) {
+        try {
+          await unreserveStock(item.productId, item.quantity);
+        } catch (error) {
+          logger.warn({ error, productId: item.productId }, 'Failed to unreserve stock');
+          // Don't fail the status update if inventory unreserve fails
+        }
+      }
+    } else if (status === 'delivered') {
+      // Finalize stock reduction when order is delivered
+      const { processOrderStockReduction } = await import('../inventory/presenter.js');
+      try {
+        const orderItems = order.items.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity
+        }));
+        await processOrderStockReduction(orderItems);
+      } catch (error) {
+        logger.warn({ error }, 'Failed to finalize stock');
+        // Don't fail the status update if inventory finalization fails
+      }
+    }
+
+    // Update the order status with proper timestamp
     const success = await repo.updateOrderStatus(orderId, status);
     if (!success) {
       throw new AppError('Order not found or update failed', { code: 'ORDER_UPDATE_ERROR' });

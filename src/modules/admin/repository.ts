@@ -305,10 +305,15 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 
 export async function updateOrderStatus(
   orderId: string, 
-  status: 'pending' | 'processing' | 'delivered' | 'cancelled' | 'refunded'
+  status: 'pending' | 'confirmed' | 'processing' | 'delivered' | 'cancelled' | 'refunded'
 ): Promise<boolean> {
   const db = await getDb();
   const updateData: any = { status, updatedAt: new Date() };
+  
+  // Set deliveredAt timestamp when status changes to delivered
+  if (status === 'delivered') {
+    updateData.deliveredAt = new Date().toISOString();
+  }
   
   const result = await db.collection('orders').updateOne(
     { _id: new ObjectId(orderId) },
