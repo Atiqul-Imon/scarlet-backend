@@ -69,9 +69,11 @@ const normalizeIdentifier = (identifier: string): string => {
 };
 
 const generateTokens = async (user: User, rememberMe = false, ip?: string): Promise<AuthTokens> => {
-  const accessTokenExpiry = '15m';
-  const refreshTokenExpiry = rememberMe ? '30d' : '7d';
-  const expiresIn = 15 * 60; // 15 minutes in seconds
+  // Extended token expiry for admin users
+  const isAdmin = user.role === 'admin';
+  const accessTokenExpiry = isAdmin ? '2h' : '15m'; // 2 hours for admin, 15 minutes for regular users
+  const refreshTokenExpiry = rememberMe ? '30d' : (isAdmin ? '7d' : '7d');
+  const expiresIn = isAdmin ? 2 * 60 * 60 : 15 * 60; // 2 hours for admin, 15 minutes for regular users
 
   const accessToken = jwt.sign(
     { 
