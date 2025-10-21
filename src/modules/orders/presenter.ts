@@ -274,6 +274,30 @@ export async function createGuestOrderFromCart(sessionId: string, orderData: Cre
     isGuestOrder: true,
   };
 
+  // Auto-create account for guest if they provided email
+  let autoCreatedUserId: string | undefined;
+  if (orderData.email && orderData.email.includes('@')) {
+    try {
+      const { autoCreateGuestAccount } = await import('../auth/presenter.js');
+      autoCreatedUserId = await autoCreateGuestAccount({
+        email: orderData.email,
+        phone: orderData.phone,
+        firstName: orderData.firstName,
+        lastName: orderData.lastName || ''
+      });
+      
+      // If account created, link order to user instead of guest
+      if (autoCreatedUserId) {
+        order.userId = autoCreatedUserId;
+        order.isGuestOrder = false;
+        delete order.guestId;
+      }
+    } catch (error) {
+      console.error('Failed to auto-create account:', error);
+      // Continue with guest order if account creation fails
+    }
+  }
+
   // Insert order
   const createdOrder = await orderRepo.insertOrder(order);
 

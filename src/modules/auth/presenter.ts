@@ -535,4 +535,74 @@ export async function verifyPhoneOtp(userId: string, phone: string, otp: string)
   }
 }
 
+/**
+ * Auto-create account for guest users who place orders
+ * Returns userId if account created successfully, undefined otherwise
+ */
+export async function autoCreateGuestAccount(data: {
+  email: string;
+  phone: string;
+  firstName: string;
+  lastName: string;
+}): Promise<string | undefined> {
+  try {
+    // Check if user already exists
+    const normalizedEmail = normalizeIdentifier(data.email);
+    const normalizedPhone = normalizeIdentifier(data.phone);
+    
+    let existingUser = await repo.findUserByEmail(normalizedEmail);
+    if (existingUser) {
+      logger.info({ email: data.email }, 'User already exists with this email');
+      return existingUser._id?.toString();
+    }
+    
+    existingUser = await repo.findUserByPhone(normalizedPhone);
+    if (existingUser) {
+      logger.info({ phone: data.phone }, 'User already exists with this phone');
+      return existingUser._id?.toString();
+    }
+
+    // Generate a random temporary password
+    const tempPassword = crypto.randomBytes(8).toString('hex');
+    const passwordHash = await argon2.hash(tempPassword);
+
+    // Create user object
+    const newUser: User = {
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      passwordHash,
+      firstName: data.firstName.trim(),
+      lastName: data.lastName?.trim(),
+      role: 'customer',
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      preferences: {
+        newsletter: false,
+        smsNotifications: true,
+        language: 'en',
+        currency: 'BDT'
+      },
+      addresses: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Insert user
+    const createdUser = await repo.insertUser(newUser);
+    
+    logger.info({ 
+      userId: createdUser._id, 
+      email: data.email 
+    }, 'Auto-created account for guest user');
+
+    // TODO: Send welcome email with password reset link
+    // await sendWelcomeEmail(data.email, tempPassword);
+
+    return createdUser._id?.toString();
+  } catch (error) {
+    logger.error({ error, email: data.email }, 'Failed to auto-create guest account');
+    return undefined; // Don't fail order creation if account creation fails
+  }
+}
+
 
