@@ -46,7 +46,7 @@ export interface AdminProductFilters {
 }
 
 export interface AdminOrderFilters {
-  status?: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+  status?: 'pending' | 'processing' | 'delivered' | 'cancelled' | 'refunded';
   dateFrom?: Date;
   dateTo?: Date;
   minAmount?: number;

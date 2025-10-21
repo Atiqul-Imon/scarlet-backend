@@ -1,4 +1,4 @@
-export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'delivered' | 'cancelled' | 'refunded';
 export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
 export type PaymentMethod = 'bkash' | 'nagad' | 'rocket' | 'card' | 'cod';
 
@@ -47,14 +47,8 @@ export interface Order {
   shippingAddress: ShippingAddress;
   paymentInfo: PaymentInfo;
   notes?: string;
-  trackingNumber?: string;
-  estimatedDelivery?: string;
   deliveredAt?: string;
   isGuestOrder?: boolean;
-  // Courier shipment info
-  shipmentId?: string;           // Reference to shipment document
-  courierService?: string;        // pathao, redx, steadfast
-  courierTrackingUrl?: string;    // Public tracking URL
   createdAt?: string;
   updatedAt?: string;
 }

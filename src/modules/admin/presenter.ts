@@ -259,11 +259,10 @@ export async function getOrderById(orderId: string): Promise<Order> {
 
 export async function updateOrderStatus(
   orderId: string, 
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded',
-  trackingNumber?: string
+  status: 'pending' | 'processing' | 'delivered' | 'cancelled' | 'refunded'
 ): Promise<void> {
   try {
-    const success = await repo.updateOrderStatus(orderId, status, trackingNumber);
+    const success = await repo.updateOrderStatus(orderId, status);
     if (!success) {
       throw new AppError('Order not found or update failed', { code: 'ORDER_UPDATE_ERROR' });
     }

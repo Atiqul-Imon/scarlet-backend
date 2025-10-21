@@ -354,14 +354,14 @@ export const getOrderById = asyncHandler(async (req: Request, res: Response) => 
 
 export const updateOrderStatus = asyncHandler(async (req: Request, res: Response) => {
   const { orderId } = req.params;
-  const { status, trackingNumber } = req.body;
+  const { status } = req.body;
   
-  const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+  const validStatuses = ['pending', 'processing', 'delivered', 'cancelled', 'refunded'];
   if (!status || !validStatuses.includes(status)) {
     return fail(res, { message: 'Invalid order status', code: 'INVALID_STATUS' }, 400);
   }
   
-  await presenter.updateOrderStatus(orderId, status, trackingNumber);
+  await presenter.updateOrderStatus(orderId, status);
   
   // Log admin activity
   if (req.user) {
@@ -369,7 +369,7 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
       req.user._id!.toString(),
       req.user.email || req.user.phone || 'unknown',
       'UPDATE_ORDER_STATUS',
-      { orderId, status, trackingNumber },
+      { orderId, status },
       req.ip,
       req.headers['user-agent']
     );

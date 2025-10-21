@@ -4,7 +4,6 @@ import { closeMongoConnection } from './core/db/mongoClient.js';
 import { logger } from './core/logging/logger.js';
 import { createServer as createHttpServer } from 'http';
 import { ChatSocketService } from './modules/chat/socketService.js';
-import { initShippingIndexes } from './modules/shipping/repository.js';
 
 export function createServer() {
   const app = createApp();
@@ -13,10 +12,6 @@ export function createServer() {
   // Initialize WebSocket service for chat
   const chatSocketService = new ChatSocketService(httpServer);
   
-  // Initialize shipping indexes
-  initShippingIndexes().catch(err => {
-    logger.error('Failed to initialize shipping indexes:', err);
-  });
   
   const server = httpServer.listen(env.port, () => {
     if (process.env.NODE_ENV !== 'test') {
@@ -25,7 +20,6 @@ export function createServer() {
       logger.info(`🌍 Environment: ${env.nodeEnv}`);
       logger.info(`🍃 MongoDB Atlas connection ready`);
       logger.info(`💬 Chat WebSocket service initialized`);
-      logger.info(`📦 Courier services initialized`);
     }
   });
 

@@ -305,12 +305,10 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 
 export async function updateOrderStatus(
   orderId: string, 
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded',
-  trackingNumber?: string
+  status: 'pending' | 'processing' | 'delivered' | 'cancelled' | 'refunded'
 ): Promise<boolean> {
   const db = await getDb();
   const updateData: any = { status, updatedAt: new Date() };
-  if (trackingNumber) updateData.trackingNumber = trackingNumber;
   
   const result = await db.collection('orders').updateOne(
     { _id: new ObjectId(orderId) },
@@ -345,14 +343,14 @@ export async function getDashboardStats(): Promise<any> {
     db.collection('orders').countDocuments({ status: 'pending' }),
     db.collection('products').countDocuments({ stock: { $lte: 10 } }),
     db.collection('orders').aggregate([
-      { $match: { status: { $in: ['delivered', 'processing', 'shipped'] } } },
+      { $match: { status: { $in: ['delivered', 'processing'] } } },
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]).toArray(),
     db.collection('orders').aggregate([
       { 
         $match: { 
           createdAt: { $gte: today },
-          status: { $in: ['delivered', 'processing', 'shipped'] }
+          status: { $in: ['delivered', 'processing'] }
         }
       },
       { $group: { _id: null, total: { $sum: '$total' } } }
