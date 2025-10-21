@@ -7,8 +7,8 @@ const router = Router();
 // All routes require authentication
 router.use(authenticate);
 
-// Upload media file (will be handled by frontend upload API)
-// router.post('/upload', upload.single('file'), controller.uploadMedia);
+// Save media file to database (after ImageKit upload)
+router.post('/', controller.saveMediaFile);
 
 // Get media files with filters and pagination
 router.get('/', controller.getMediaFiles);

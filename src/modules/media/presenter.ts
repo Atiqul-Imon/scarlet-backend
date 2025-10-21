@@ -158,6 +158,58 @@ export async function deleteMediaFile(id: string, userId: string): Promise<void>
   }
 }
 
+export async function saveMediaFile(
+  mediaData: {
+    filename: string;
+    originalName: string;
+    url: string;
+    thumbnailUrl?: string;
+    size: number;
+    mimeType: string;
+    width?: number;
+    height?: number;
+    alt?: string;
+    caption?: string;
+    tags: string[];
+    category: string;
+  },
+  userId: string
+): Promise<MediaFile> {
+  try {
+    const mediaFile: MediaFile = {
+      filename: mediaData.filename,
+      originalName: mediaData.originalName,
+      url: mediaData.url,
+      thumbnailUrl: mediaData.thumbnailUrl,
+      size: mediaData.size,
+      mimeType: mediaData.mimeType,
+      width: mediaData.width,
+      height: mediaData.height,
+      alt: mediaData.alt || '',
+      caption: mediaData.caption || '',
+      tags: mediaData.tags,
+      category: mediaData.category as 'product' | 'category' | 'blog' | 'general',
+      uploadedBy: userId,
+      isActive: true
+    };
+
+    const createdFile = await repo.insertMediaFile(mediaFile);
+    
+    logger.info({ 
+      mediaId: createdFile._id, 
+      filename: createdFile.filename,
+      category: mediaData.category,
+      userId 
+    }, 'Media file saved to database');
+
+    return createdFile;
+  } catch (error) {
+    logger.error({ error, userId }, 'Failed to save media file');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to save media file', { code: 'SAVE_FAILED' });
+  }
+}
+
 export async function getMediaStats() {
   try {
     return await repo.getMediaStats();

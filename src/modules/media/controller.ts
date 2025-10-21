@@ -152,6 +152,57 @@ export const deleteMediaFile = asyncHandler(async (req: Request, res: Response) 
   }
 });
 
+// Save media file to database (after ImageKit upload)
+export const saveMediaFile = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  if (!userId) {
+    return fail(res, { message: 'Authentication required' }, 401);
+  }
+
+  const {
+    filename,
+    originalName,
+    url,
+    thumbnailUrl,
+    size,
+    mimeType,
+    width,
+    height,
+    alt,
+    caption,
+    tags,
+    category
+  } = req.body;
+
+  if (!filename || !url) {
+    return fail(res, { message: 'Filename and URL are required' }, 400);
+  }
+
+  try {
+    const mediaFile = await presenter.saveMediaFile({
+      filename,
+      originalName,
+      url,
+      thumbnailUrl,
+      size,
+      mimeType,
+      width,
+      height,
+      alt,
+      caption,
+      tags: tags || [],
+      category: category || 'general'
+    }, userId);
+    
+    ok(res, mediaFile);
+  } catch (error: any) {
+    return fail(res, { 
+      message: error.message || 'Failed to save media file',
+      code: error.code 
+    }, 500);
+  }
+});
+
 // Get media statistics
 export const getMediaStats = asyncHandler(async (req: Request, res: Response) => {
   try {
