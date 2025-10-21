@@ -295,10 +295,15 @@ export async function updateOrderStatus(
       }
     }
 
-    // Update the order status with proper timestamp
+    // Update the order status with proper timestamp and payment status
     const success = await repo.updateOrderStatus(orderId, status);
     if (!success) {
       throw new AppError('Order not found or update failed', { code: 'ORDER_UPDATE_ERROR' });
+    }
+
+    // Update payment status to 'refunded' when order is refunded
+    if (status === 'refunded') {
+      await repo.updateOrderPaymentStatus(orderId, 'refunded');
     }
   } catch (error) {
     logger.error({ error, orderId, status }, 'Failed to update order status');

@@ -322,6 +322,23 @@ export async function updateOrderStatus(
   return result.modifiedCount > 0;
 }
 
+export async function updateOrderPaymentStatus(
+  orderId: string,
+  paymentStatus: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded'
+): Promise<boolean> {
+  const db = await getDb();
+  const result = await db.collection('orders').updateOne(
+    { _id: new ObjectId(orderId) },
+    { 
+      $set: { 
+        'paymentInfo.status': paymentStatus,
+        updatedAt: new Date()
+      }
+    }
+  );
+  return result.modifiedCount > 0;
+}
+
 // Analytics
 export async function getDashboardStats(): Promise<any> {
   const db = await getDb();
@@ -336,6 +353,7 @@ export async function getDashboardStats(): Promise<any> {
     newUsersToday,
     ordersToday,
     pendingOrders,
+    refundedOrders,
     lowStockProducts,
     revenueData,
     revenueTodayData
@@ -346,16 +364,25 @@ export async function getDashboardStats(): Promise<any> {
     db.collection('users').countDocuments({ createdAt: { $gte: today } }),
     db.collection('orders').countDocuments({ createdAt: { $gte: today } }),
     db.collection('orders').countDocuments({ status: 'pending' }),
+    db.collection('orders').countDocuments({ status: 'refunded' }),
     db.collection('products').countDocuments({ stock: { $lte: 10 } }),
     db.collection('orders').aggregate([
-      { $match: { status: { $in: ['delivered', 'processing'] } } },
+      { 
+        $match: { 
+          status: { $in: ['delivered', 'processing', 'confirmed'] },
+          // Exclude refunded orders from revenue
+          $nor: [{ status: 'refunded' }, { status: 'cancelled' }]
+        } 
+      },
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]).toArray(),
     db.collection('orders').aggregate([
       { 
         $match: { 
           createdAt: { $gte: today },
-          status: { $in: ['delivered', 'processing'] }
+          status: { $in: ['delivered', 'processing', 'confirmed'] },
+          // Exclude refunded orders from today's revenue
+          $nor: [{ status: 'refunded' }, { status: 'cancelled' }]
         }
       },
       { $group: { _id: null, total: { $sum: '$total' } } }
@@ -374,6 +401,7 @@ export async function getDashboardStats(): Promise<any> {
     ordersToday,
     revenueToday,
     pendingOrders,
+    refundedOrders,
     lowStockProducts
   };
 }
