@@ -26,3 +26,8 @@ router.get('/products/search', rateLimits.search, asyncHandler(controller.search
 router.get('/products/category/:categoryId', asyncHandler(controller.getProductsByCategory));
 router.get('/products/homepage/:section', asyncHandler(controller.getProductsByHomepageSection));
 router.get('/products/:slug', asyncHandler(controller.getProductBySlug));
+
+// Search endpoints
+router.get('/search', rateLimits.search, asyncHandler(controller.searchProducts));
+router.get('/search/suggestions', rateLimits.search, asyncHandler(controller.getSearchSuggestions));
+router.get('/search/popular', asyncHandler(controller.getPopularSearches));

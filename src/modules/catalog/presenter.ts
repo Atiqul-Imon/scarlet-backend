@@ -1,5 +1,6 @@
 import * as repo from './repository.js';
 import { AppError } from '../../core/errors/AppError.js';
+import { catalogCache } from './cache.js';
 
 export async function getCategories() {
   return repo.listCategories();
@@ -35,12 +36,60 @@ export async function getProductById(id: string) {
   return product;
 }
 
-export async function searchProducts(query: string) {
+export async function searchProducts(query: string, options: any = {}) {
   if (!query || query.trim().length < 2) {
     throw new AppError('Search query must be at least 2 characters', { status: 400 });
   }
   
-  return repo.searchProducts(query.trim());
+  // Try cache first
+  const cached = await catalogCache.getSearchResults(query, options.filters);
+  if (cached) {
+    return cached;
+  }
+  
+  const results = await repo.searchProducts(query.trim(), options);
+  
+  // Cache the results
+  await catalogCache.setSearchResults(query, results, options.filters);
+  
+  // Track search query for analytics
+  await catalogCache.trackSearchQuery(query);
+  
+  return results;
+}
+
+export async function getSearchSuggestions(query: string) {
+  if (!query || query.trim().length < 2) {
+    return { products: [], brands: [], categories: [] };
+  }
+  
+  // Try cache first
+  const cached = await catalogCache.getSearchSuggestions(query);
+  if (cached) {
+    return cached;
+  }
+  
+  const suggestions = await repo.getSearchSuggestions(query.trim());
+  
+  // Cache the suggestions
+  await catalogCache.setSearchSuggestions(query, suggestions);
+  
+  return suggestions;
+}
+
+export async function getPopularSearches() {
+  // Try cache first
+  const cached = await catalogCache.getPopularSearches();
+  if (cached) {
+    return cached;
+  }
+  
+  const searches = await repo.getPopularSearches();
+  
+  // Cache the popular searches
+  await catalogCache.setPopularSearches(searches);
+  
+  return searches;
 }
 
 export async function getProductsByCategory(categoryId: string) {

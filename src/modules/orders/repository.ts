@@ -85,4 +85,30 @@ export async function listOrdersPaginated(
   return { orders, total, totalPages };
 }
 
+export async function updateOrderStatus(orderId: string, status: string): Promise<boolean> {
+  const db = await getDb();
+  const result = await db.collection<Order>('orders').updateOne(
+    { _id: new ObjectId(orderId) } as any,
+    { $set: { status: status as any, updatedAt: new Date().toISOString() } }
+  );
+  return result.modifiedCount > 0;
+}
+
+export async function getOrders(page: number = 1, limit: number = 10, filters: any = {}): Promise<{ orders: Order[]; total: number }> {
+  const db = await getDb();
+  const skip = (page - 1) * limit;
+  
+  const [orders, total] = await Promise.all([
+    db.collection<Order>('orders')
+      .find({})
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray(),
+    db.collection<Order>('orders').countDocuments()
+  ]);
+  
+  return { orders, total };
+}
+
 

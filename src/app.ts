@@ -19,7 +19,6 @@ import { router as adminRoutes } from './modules/admin/routes.js';
 import { router as paymentRoutes } from './modules/payments/routes.js';
 import { router as addressRoutes } from './modules/addresses/routes.js';
 import { router as wishlistRoutes } from './modules/wishlist/routes.js';
-import { router as inventoryRoutes } from './modules/inventory/routes.js';
 import { router as analyticsRoutes } from './modules/analytics/routes.js';
 import { router as cartAbandonmentRoutes } from './modules/cart-abandonment/routes.js';
 import { router as otpRoutes } from './modules/otp/routes.js';
@@ -161,7 +160,6 @@ export function createApp() {
   app.use('/api/payments', noCacheCheckout, paymentRoutes);
   app.use('/api/addresses', noCacheUsers, addressRoutes);
   app.use('/api/wishlist', noCacheUsers, wishlistRoutes);
-  app.use('/api/inventory', noCacheAuth, inventoryRoutes);
   app.use('/api/analytics', noCacheAuth, analyticsRoutes);
   app.use('/api/cart-abandonment', noCacheCart, cartAbandonmentRoutes);
   app.use('/api/otp', noCacheAuth, otpRoutes);

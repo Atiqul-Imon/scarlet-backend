@@ -22,7 +22,6 @@ router.get('/products', requireAdminOrStaff, auditLog('VIEW_PRODUCTS'), controll
 router.get('/products/:productId', requireAdminOrStaff, auditLog('VIEW_PRODUCT'), controller.getProduct);
 router.post('/products', requireAdminOrStaff, auditLog('CREATE_PRODUCT'), controller.createProduct);
 router.put('/products/:productId', requireAdminOrStaff, auditLog('UPDATE_PRODUCT'), controller.updateProduct);
-router.patch('/products/:productId/stock', requireAdminOrStaff, auditLog('UPDATE_PRODUCT_STOCK'), controller.updateProductStock);
 router.delete('/products/:productId', requireAdmin, auditLog('DELETE_PRODUCT'), controller.deleteProduct);
 
 // Order Management - admin and staff

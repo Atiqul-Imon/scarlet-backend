@@ -230,30 +230,6 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
   ok(res, product);
 });
 
-export const updateProductStock = asyncHandler(async (req: Request, res: Response) => {
-  const { productId } = req.params;
-  const { stock } = req.body;
-  
-  if (typeof stock !== 'number' || stock < 0) {
-    return fail(res, { message: 'Invalid stock value', code: 'INVALID_STOCK' }, 400);
-  }
-  
-  await presenter.updateProductStock(productId, stock);
-  
-  // Log admin activity
-  if (req.user) {
-    await presenter.logActivity(
-      req.user._id!.toString(),
-      req.user.email || req.user.phone || 'unknown',
-      'UPDATE_PRODUCT_STOCK',
-      { productId, stock },
-      req.ip,
-      req.headers['user-agent']
-    );
-  }
-  
-  ok(res, { message: 'Product stock updated successfully' });
-});
 
 export const deleteProduct = asyncHandler(async (req: Request, res: Response) => {
   const { productId } = req.params;

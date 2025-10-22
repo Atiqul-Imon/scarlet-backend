@@ -84,6 +84,7 @@ export async function create(req: any, res: any) {
       area: req.body.area.trim(),
       postalCode: req.body.postalCode.trim(),
       paymentMethod: req.body.paymentMethod,
+      paymentStatus: 'pending',
       notes: req.body.notes?.trim() || undefined,
     };
 
@@ -146,10 +147,11 @@ export async function createGuestOrder(req: any, res: any) {
       area: req.body.area.trim(),
       postalCode: req.body.postalCode.trim(),
       paymentMethod: req.body.paymentMethod,
+      paymentStatus: 'pending',
       notes: req.body.notes?.trim() || undefined,
     };
 
-    const order = await presenter.createGuestOrderFromCart(sessionId, orderData);
+    const order = await presenter.createFromGuestCart(sessionId, orderData);
     ok(res, order);
   } catch (error: any) {
     if (error.message.includes('Cart is empty')) {
@@ -189,7 +191,7 @@ export async function listMine(req: any, res: any) {
   }
 
   try {
-    const orders = await presenter.listMyOrders(userId);
+    const orders = await presenter.getOrdersByUser(userId);
     ok(res, orders);
   } catch (error) {
     throw error;
@@ -216,7 +218,7 @@ export const getOrder = asyncHandler(async (req: any, res: any) => {
   }
 
   try {
-    const order = await presenter.getOrderById(orderId, userId);
+    const order = await presenter.getOrderById(orderId);
     ok(res, order);
   } catch (error: any) {
     if (error.message.includes('not found')) {
@@ -249,7 +251,7 @@ export const getOrderPublic = asyncHandler(async (req: any, res: any) => {
   }
 
   try {
-    const order = await presenter.getOrderByIdPublic(orderId);
+    const order = await presenter.getOrderById(orderId);
     ok(res, order);
   } catch (error: any) {
     if (error.message.includes('not found')) {
@@ -284,7 +286,7 @@ export const cancelOrder = asyncHandler(async (req: any, res: any) => {
   }
 
   try {
-    const order = await presenter.cancelOrder(orderId, userId, reason);
+    const order = await presenter.updateOrderStatus(orderId, 'cancelled');
     ok(res, order);
   } catch (error: any) {
     if (error.message.includes('not found')) {

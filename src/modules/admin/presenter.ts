@@ -11,18 +11,15 @@ import type {
 import type { Order } from '../orders/model.js';
 import { AppError } from '../../core/errors/AppError.js';
 import { logger } from '../../core/logging/logger.js';
+import { getDb } from '../../core/db/mongoClient.js';
 
 // Dashboard Analytics
 export async function getDashboardStats(): Promise<AdminStats> {
   try {
-    const stats = await repo.getDashboardStats();
-    
-    // Get top selling products (placeholder - would need order items collection)
-    const topSellingProducts = [
-      { productId: '1', name: 'Rose Glow Serum', sales: 45, revenue: 2250 },
-      { productId: '2', name: 'Hydrating Face Mask', sales: 38, revenue: 1520 },
-      { productId: '3', name: 'Vitamin C Cream', sales: 32, revenue: 1920 }
-    ];
+    const [stats, topSellingProducts] = await Promise.all([
+      repo.getDashboardStats(),
+      repo.getTopSellingProducts(5)
+    ]);
     
     return {
       ...stats,
@@ -144,6 +141,9 @@ export async function createProduct(productData: any) {
     };
 
     const createdProduct = await repo.createProduct(product);
+    
+    // Note: trackInventory field is kept for future expansion but no automatic inventory creation
+    
     return createdProduct;
   } catch (error) {
     logger.error({ error, productData }, 'Failed to create product');
@@ -198,22 +198,6 @@ export async function updateProduct(productId: string, productData: any) {
   }
 }
 
-export async function updateProductStock(productId: string, stock: number): Promise<void> {
-  try {
-    if (stock < 0) {
-      throw new AppError('Stock cannot be negative', { code: 'INVALID_STOCK' });
-    }
-    
-    const success = await repo.updateProductStock(productId, stock);
-    if (!success) {
-      throw new AppError('Product not found or update failed', { code: 'PRODUCT_UPDATE_ERROR' });
-    }
-  } catch (error) {
-    logger.error({ error, productId, stock }, 'Failed to update product stock');
-    if (error instanceof AppError) throw error;
-    throw new AppError('Failed to update product stock', { code: 'PRODUCT_UPDATE_ERROR' });
-  }
-}
 
 export async function deleteProduct(productId: string): Promise<void> {
   try {
@@ -268,32 +252,7 @@ export async function updateOrderStatus(
       throw new AppError('Order not found', { code: 'ORDER_NOT_FOUND' });
     }
 
-    // Handle inventory based on status change
-    if (status === 'cancelled' || status === 'refunded') {
-      // Unreserve stock when order is cancelled/refunded
-      const { unreserveStock } = await import('../inventory/presenter.js');
-      for (const item of order.items) {
-        try {
-          await unreserveStock(item.productId, item.quantity);
-        } catch (error) {
-          logger.warn({ error, productId: item.productId }, 'Failed to unreserve stock');
-          // Don't fail the status update if inventory unreserve fails
-        }
-      }
-    } else if (status === 'delivered') {
-      // Finalize stock reduction when order is delivered
-      const { processOrderStockReduction } = await import('../inventory/presenter.js');
-      try {
-        const orderItems = order.items.map(item => ({
-          productId: item.productId,
-          quantity: item.quantity
-        }));
-        await processOrderStockReduction(orderItems);
-      } catch (error) {
-        logger.warn({ error }, 'Failed to finalize stock');
-        // Don't fail the status update if inventory finalization fails
-      }
-    }
+    // Note: Stock management is now handled at product level
 
     // Update the order status with proper timestamp and payment status
     const success = await repo.updateOrderStatus(orderId, status);
@@ -553,3 +512,4 @@ export async function deleteCategory(categoryId: string) {
     throw new AppError('Failed to delete category', { code: 'CATEGORY_DELETE_ERROR' });
   }
 }
+

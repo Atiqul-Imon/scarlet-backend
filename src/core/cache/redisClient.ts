@@ -297,6 +297,38 @@ class RedisClient {
       };
     }
   }
+
+  async zincrby(key: string, increment: number, member: string): Promise<number> {
+    if (!this.client || !this.isConnected) {
+      // For fallback storage, we'll just return 1
+      return 1;
+    }
+
+    try {
+      const result = await this.client.zincrby(key, increment, member);
+      return typeof result === 'string' ? parseFloat(result) : result;
+    } catch (error) {
+      logger.error({ error }, 'Redis ZINCRBY error');
+      return 1;
+    }
+  }
+
+  async zrevrange(key: string, start: number, stop: number, withScores?: string): Promise<string[]> {
+    if (!this.client || !this.isConnected) {
+      return [];
+    }
+
+    try {
+      if (withScores === 'WITHSCORES') {
+        return await this.client.zrevrange(key, start, stop, 'WITHSCORES');
+      } else {
+        return await this.client.zrevrange(key, start, stop);
+      }
+    } catch (error) {
+      logger.error({ error }, 'Redis ZREVRANGE error');
+      return [];
+    }
+  }
 }
 
 // Export singleton instance

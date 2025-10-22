@@ -51,6 +51,37 @@ export async function getProductById(id: string): Promise<Product | null> {
   return product;
 }
 
+// Helper function to get all descendant category IDs for a given category
+export async function getAllDescendantCategoryIds(categoryId: string): Promise<string[]> {
+  const db = await getDb();
+  
+  const allCategoryIds = new Set<string>([categoryId]);
+  const categoriesToProcess = [categoryId];
+  
+  while (categoriesToProcess.length > 0) {
+    const currentCategoryId = categoriesToProcess.shift()!;
+    
+    // Find all direct children of the current category
+    // Note: parentId is stored as string in database, so we need to convert to string
+    const children = await db.collection<Category>('categories')
+      .find({ 
+        parentId: currentCategoryId.toString(),
+        isActive: { $ne: false } 
+      })
+      .toArray();
+    
+    // Add children to the set and queue them for processing
+    for (const child of children) {
+      if (child._id && !allCategoryIds.has(child._id.toString())) {
+        allCategoryIds.add(child._id.toString());
+        categoriesToProcess.push(child._id.toString());
+      }
+    }
+  }
+  
+  return Array.from(allCategoryIds);
+}
+
 export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
   // Try cache first
   const cached = await catalogCache.getProductsByCategory(categoryId);
@@ -58,12 +89,15 @@ export async function getProductsByCategory(categoryId: string): Promise<Product
     return cached;
   }
   
+  // Get all descendant category IDs (including the category itself)
+  const allCategoryIds = await getAllDescendantCategoryIds(categoryId);
+  
   // Fetch from database
   const db = await getDb();
   const { ObjectId } = await import('mongodb');
   const products = await db.collection<Product>('products')
     .find({ 
-      categoryIds: { $in: [categoryId] }, 
+      categoryIds: { $in: allCategoryIds }, 
       isActive: { $ne: false } 
     })
     .limit(100)
@@ -75,20 +109,293 @@ export async function getProductsByCategory(categoryId: string): Promise<Product
   return products;
 }
 
-export async function searchProducts(query: string): Promise<Product[]> {
+export interface SearchResult {
+  products: Product[];
+  total: number;
+  suggestions?: string[];
+  filters?: {
+    brands: string[];
+    categories: string[];
+    priceRange: { min: number; max: number };
+  };
+}
+
+export async function searchProducts(query: string, options: {
+  limit?: number;
+  page?: number;
+  filters?: {
+    brand?: string[];
+    category?: string[];
+    priceMin?: number;
+    priceMax?: number;
+    inStock?: boolean;
+    rating?: number;
+  };
+  sortBy?: 'relevance' | 'price_asc' | 'price_desc' | 'rating' | 'newest';
+} = {}): Promise<SearchResult> {
   const db = await getDb();
-  return db.collection<Product>('products')
-    .find({
+  const limit = options.limit || 50;
+  const page = options.page || 1;
+  const skip = (page - 1) * limit;
+  
+  // Build base query
+  const baseQuery: any = {
+    isActive: { $ne: false }
+  };
+  
+  // Add text search with scoring
+  if (query && query.trim().length > 0) {
+    baseQuery.$text = { $search: query };
+  }
+  
+  // Add filters
+  if (options.filters) {
+    if (options.filters.brand && options.filters.brand.length > 0) {
+      baseQuery.brand = { $in: options.filters.brand };
+    }
+    if (options.filters.category && options.filters.category.length > 0) {
+      baseQuery.categoryIds = { $in: options.filters.category };
+    }
+    if (options.filters.priceMin !== undefined || options.filters.priceMax !== undefined) {
+      baseQuery['price.amount'] = {};
+      if (options.filters.priceMin !== undefined) {
+        baseQuery['price.amount'].$gte = options.filters.priceMin;
+      }
+      if (options.filters.priceMax !== undefined) {
+        baseQuery['price.amount'].$lte = options.filters.priceMax;
+      }
+    }
+    if (options.filters.inStock !== undefined) {
+      baseQuery.stock = options.filters.inStock ? { $gt: 0 } : { $lte: 0 };
+    }
+    if (options.filters.rating !== undefined) {
+      baseQuery['rating.average'] = { $gte: options.filters.rating };
+    }
+  }
+  
+  // Build sort criteria
+  let sortCriteria: any = {};
+  switch (options.sortBy) {
+    case 'price_asc':
+      sortCriteria = { 'price.amount': 1 };
+      break;
+    case 'price_desc':
+      sortCriteria = { 'price.amount': -1 };
+      break;
+    case 'rating':
+      sortCriteria = { 'rating.average': -1 };
+      break;
+    case 'newest':
+      sortCriteria = { createdAt: -1 };
+      break;
+    case 'relevance':
+    default:
+      if (query && query.trim().length > 0) {
+        sortCriteria = { score: { $meta: 'textScore' } };
+      } else {
+        sortCriteria = { isBestSeller: -1, 'rating.average': -1 };
+      }
+      break;
+  }
+  
+  // Execute search with text scoring if query exists
+  const searchOptions: any = {
+    sort: sortCriteria,
+    skip,
+    limit
+  };
+  
+  if (query && query.trim().length > 0) {
+    searchOptions.projection = {
+      score: { $meta: 'textScore' }
+    };
+  }
+  
+  const [products, total] = await Promise.all([
+    db.collection<Product>('products')
+      .find(baseQuery, searchOptions)
+      .toArray(),
+    db.collection('products').countDocuments(baseQuery)
+  ]);
+  
+  // If no text search results, try partial matching
+  if (products.length === 0 && query && query.trim().length > 0) {
+    const partialQuery = {
       $or: [
         { title: { $regex: query, $options: 'i' } },
-        { description: { $regex: query, $options: 'i' } },
         { brand: { $regex: query, $options: 'i' } },
         { tags: { $in: [new RegExp(query, 'i')] } }
       ],
       isActive: { $ne: false }
+    };
+    
+    const partialResults = await db.collection<Product>('products')
+      .find(partialQuery)
+      .sort({ isBestSeller: -1, 'rating.average': -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+    
+    const partialTotal = await db.collection('products').countDocuments(partialQuery);
+    
+    return {
+      products: partialResults,
+      total: partialTotal,
+      suggestions: await generateSearchSuggestions(query, db)
+    };
+  }
+  
+  // Get filter options for the search results
+  const filterOptions = await getSearchFilterOptions(baseQuery, db);
+  
+  return {
+    products,
+    total,
+    filters: filterOptions,
+    suggestions: await generateSearchSuggestions(query, db)
+  };
+}
+
+async function generateSearchSuggestions(query: string, db: any): Promise<string[]> {
+  if (!query || query.trim().length < 2) return [];
+  
+  const suggestions: string[] = [];
+  
+  // Get brand suggestions
+  const brandSuggestions = await db.collection('products')
+    .distinct('brand', {
+      brand: { $regex: query, $options: 'i' },
+      isActive: { $ne: false }
     })
-    .limit(50)
+    .limit(3);
+  
+  suggestions.push(...brandSuggestions);
+  
+  // Get tag suggestions
+  const tagSuggestions = await db.collection('products')
+    .distinct('tags', {
+      tags: { $in: [new RegExp(query, 'i')] },
+      isActive: { $ne: false }
+    })
+    .limit(3);
+  
+  suggestions.push(...tagSuggestions.flat());
+  
+  return [...new Set(suggestions)].slice(0, 5);
+}
+
+async function getSearchFilterOptions(baseQuery: any, db: any) {
+  const [brands, categories, priceRange] = await Promise.all([
+    db.collection('products').distinct('brand', baseQuery),
+    db.collection('products').distinct('categoryIds', baseQuery),
+    db.collection('products').aggregate([
+      { $match: baseQuery },
+      {
+        $group: {
+          _id: null,
+          min: { $min: '$price.amount' },
+          max: { $max: '$price.amount' }
+        }
+      }
+    ]).toArray()
+  ]);
+  
+  return {
+    brands: [...new Set(brands.filter(Boolean))] as string[],
+    categories: [...new Set(categories.filter(Boolean))] as string[],
+    priceRange: priceRange[0] ? { min: priceRange[0].min, max: priceRange[0].max } : { min: 0, max: 10000 }
+  };
+}
+
+export async function getSearchSuggestions(query: string, limit: number = 8): Promise<{
+  products: Product[];
+  brands: string[];
+  categories: string[];
+}> {
+  const db = await getDb();
+  
+  if (!query || query.trim().length < 2) {
+    return { products: [], brands: [], categories: [] };
+  }
+  
+  const searchTerm = query.trim();
+  
+  // Get product suggestions
+  const products = await db.collection<Product>('products')
+    .find({
+      $or: [
+        { title: { $regex: searchTerm, $options: 'i' } },
+        { brand: { $regex: searchTerm, $options: 'i' } },
+        { tags: { $in: [new RegExp(searchTerm, 'i')] } }
+      ],
+      isActive: { $ne: false }
+    })
+    .sort({ isBestSeller: -1, 'rating.average': -1 })
+    .limit(limit)
     .toArray();
+  
+  // Get brand suggestions
+  const brandResults = await db.collection('products')
+    .aggregate([
+      {
+        $match: {
+          brand: { $regex: searchTerm, $options: 'i' },
+          isActive: { $ne: false }
+        }
+      },
+      { $group: { _id: '$brand' } },
+      { $limit: 5 },
+      { $project: { _id: 0, brand: '$_id' } }
+    ])
+    .toArray();
+  
+  const brands = brandResults.map(item => item.brand).filter(Boolean);
+  
+  // Get category suggestions
+  const categoryResults = await db.collection('products')
+    .aggregate([
+      {
+        $match: {
+          $or: [
+            { title: { $regex: searchTerm, $options: 'i' } },
+            { brand: { $regex: searchTerm, $options: 'i' } },
+            { tags: { $in: [new RegExp(searchTerm, 'i')] } }
+          ],
+          isActive: { $ne: false }
+        }
+      },
+      { $unwind: '$categoryIds' },
+      { $group: { _id: '$categoryIds' } },
+      { $limit: 5 },
+      { $project: { _id: 0, categoryId: '$_id' } }
+    ])
+    .toArray();
+  
+  const categories = [...new Set(categoryResults.map(item => item.categoryId).filter(Boolean))];
+  
+  return {
+    products,
+    brands: [...new Set(brands.filter(Boolean))] as string[],
+    categories: categories as string[]
+  };
+}
+
+export async function getPopularSearches(limit: number = 10): Promise<string[]> {
+  const db = await getDb();
+  
+  // This would typically come from analytics, but for now we'll use product data
+  // In a real implementation, you'd track search queries in a separate collection
+  const popularBrands = await db.collection('products')
+    .aggregate([
+      { $match: { isActive: { $ne: false } } },
+      { $group: { _id: '$brand', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: limit },
+      { $project: { _id: 0, brand: '$_id' } }
+    ])
+    .toArray();
+  
+  return popularBrands.map(item => item.brand).filter(Boolean);
 }
 
 export async function getProductsByHomepageSection(homepageSection: string): Promise<Product[]> {

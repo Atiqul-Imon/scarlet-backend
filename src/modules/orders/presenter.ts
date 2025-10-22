@@ -1,7 +1,6 @@
 import * as cartRepo from '../cart/repository.js';
 import * as catalogRepo from '../catalog/repository.js';
 import * as orderRepo from './repository.js';
-import * as inventoryPresenter from '../inventory/presenter.js';
 import * as analyticsPresenter from '../analytics/presenter.js';
 import { sendOrderSuccessSMS } from '../otp/presenter.js';
 import type { Order, OrderItem, ShippingAddress, PaymentMethod } from './model.js';
@@ -21,15 +20,11 @@ export interface CreateOrderRequest {
   
   // Payment Information
   paymentMethod: PaymentMethod;
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   
-  // Special Instructions
+  // Optional fields
   notes?: string;
-}
-
-function generateOrderNumber(): string {
-  const timestamp = Date.now().toString().slice(-8);
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `SCT${timestamp}${random}`;
+  couponCode?: string;
 }
 
 export async function createFromCart(userId: string, orderData: CreateOrderRequest): Promise<Order> {
@@ -51,9 +46,8 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
     throw new AppError('Some products in cart are no longer available', { status: 400 });
   }
 
-  // Create order items with product details and check inventory
+  // Create order items with product details and check stock
   const orderItems: OrderItem[] = [];
-  const inventoryItems = [];
   
   for (const cartItem of cart.items) {
     const product = validProducts.find(p => p!._id!.toString() === cartItem.productId);
@@ -61,43 +55,27 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
       throw new AppError(`Product ${cartItem.productId} not found`, { status: 400 });
     }
 
-    // Check inventory availability
-    try {
-      const inventoryItem = await inventoryPresenter.getInventoryItem(cartItem.productId);
-      if (inventoryItem.availableStock < cartItem.quantity) {
-        throw new AppError(`Insufficient stock for ${product.title}. Available: ${inventoryItem.availableStock}, Requested: ${cartItem.quantity}`, { status: 400 });
-      }
-      
-      // Reserve stock
-      await inventoryPresenter.reserveStock(cartItem.productId, cartItem.quantity);
-      inventoryItems.push({ productId: cartItem.productId, quantity: cartItem.quantity });
-    } catch (error) {
-      // If inventory item doesn't exist, check product stock as fallback
-      if (product.stock !== undefined && product.stock < cartItem.quantity) {
-        throw new AppError(`Insufficient stock for ${product.title}. Available: ${product.stock}, Requested: ${cartItem.quantity}`, { status: 400 });
-      }
+    // Check product stock availability
+    if (product.stock !== undefined && product.stock < cartItem.quantity) {
+      throw new AppError(`Insufficient stock for ${product.title}. Available: ${product.stock}, Requested: ${cartItem.quantity}`, { status: 400 });
     }
 
     orderItems.push({
       productId: cartItem.productId,
       title: product.title,
       slug: product.slug,
-      image: product.images[0] || '',
       price: product.price.amount,
       quantity: cartItem.quantity,
-      brand: product.brand,
-      sku: product.sku,
+      image: product.images[0] || '',
+      sku: product.sku || '',
+      brand: product.brand || ''
     });
   }
 
   // Calculate totals
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const freeShippingThreshold = 2000; // BDT 2000
-  const standardShipping = 100; // BDT 100
-  const shipping = subtotal >= freeShippingThreshold ? 0 : standardShipping;
-  const tax = 0; // No VAT for small amounts in Bangladesh
-  const discount = 0; // TODO: Implement discount logic
-  const total = subtotal + shipping + tax - discount;
+  const shippingCost = 100; // Fixed shipping cost
+  const total = subtotal + shippingCost;
 
   // Create shipping address
   const shippingAddress: ShippingAddress = {
@@ -108,138 +86,110 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
     address: orderData.address,
     city: orderData.city,
     area: orderData.area,
-    postalCode: orderData.postalCode,
+    postalCode: orderData.postalCode
   };
 
-  // Create order object
-  const order: Order = {
-    orderNumber: generateOrderNumber(),
-    userId,
+  // Generate order number
+  const orderNumber = generateOrderNumber();
+
+  // Create order
+  const order: Omit<Order, '_id' | 'createdAt' | 'updatedAt'> = {
+    orderNumber,
+    userId: userId,
     items: orderItems,
-    subtotal,
-    shipping,
-    tax,
-    discount,
-    total,
-    currency: 'BDT',
-    status: 'pending',
     shippingAddress,
     paymentInfo: {
       method: orderData.paymentMethod,
-      status: orderData.paymentMethod === 'cod' ? 'pending' : 'pending',
+      status: orderData.paymentStatus === 'paid' ? 'completed' : orderData.paymentStatus
     },
-    notes: orderData.notes,
+    status: 'pending',
+    subtotal,
+    shipping: shippingCost,
+    tax: 0,
+    discount: 0,
+    total,
+    currency: 'BDT',
+    notes: orderData.notes || ''
   };
 
-  // Insert order
-  const createdOrder = await orderRepo.insertOrder(order);
+  const createdOrder = await orderRepo.insertOrder(order as any);
 
   // Clear cart after successful order creation
   await cartRepo.saveCart({ userId, items: [] });
 
-  // Process inventory stock reduction
-  if (inventoryItems.length > 0) {
-    await inventoryPresenter.processOrderStockReduction(inventoryItems);
-  }
-
   // Track analytics events
   try {
     await analyticsPresenter.trackEvent({
-      sessionId: `order_${createdOrder._id}`,
-      eventType: 'purchase',
+      sessionId: userId,
+      eventType: 'order_created',
       eventData: {
         orderId: createdOrder._id,
-        value: createdOrder.total,
-        currency: createdOrder.currency,
-        items: orderItems.length
+        orderNumber: createdOrder.orderNumber,
+        total: createdOrder.total,
+        itemCount: createdOrder.items.length
       }
     });
   } catch (error) {
-    console.error('Failed to track purchase analytics:', error);
+    console.error('Failed to track order creation:', error);
   }
 
-  // Send order success SMS notification
+  // Send SMS notification
   try {
-    await sendOrderSuccessSMS(createdOrder.shippingAddress.phone, createdOrder.orderNumber);
+    await sendOrderSuccessSMS(orderData.phone, createdOrder.orderNumber);
   } catch (error) {
-    console.error('Failed to send order success SMS:', error);
-    // Don't fail the order creation if SMS fails
+    console.error('Failed to send order SMS:', error);
   }
-
-  // TODO: In production, integrate with:
-  // - Payment gateway for non-COD orders
-  // - Email service for order confirmation
 
   return createdOrder;
 }
 
-// Create guest order from cart
-export async function createGuestOrderFromCart(sessionId: string, orderData: CreateOrderRequest): Promise<Order> {
-  // Fetch guest cart and validate
-  const cart = await cartRepo.getOrCreateGuestCart(sessionId);
-  if (!cart.items.length) {
+export async function createFromGuestCart(cartItems: any[], orderData: CreateOrderRequest): Promise<Order> {
+  if (!cartItems.length) {
     throw new AppError('Cart is empty', { status: 400 });
   }
 
   // Fetch product details for all cart items
-  const productIds = cart.items.map(item => item.productId);
+  const productIds = cartItems.map(item => item.productId);
   const products = await Promise.all(
     productIds.map(id => catalogRepo.getProductById(id))
   );
 
   // Validate all products exist and are active
   const validProducts = products.filter(p => p && p.isActive !== false);
-  if (validProducts.length !== cart.items.length) {
+  if (validProducts.length !== cartItems.length) {
     throw new AppError('Some products in cart are no longer available', { status: 400 });
   }
 
-  // Create order items with product details and check inventory
+  // Create order items with product details and check stock
   const orderItems: OrderItem[] = [];
-  const inventoryItems = [];
   
-  for (const cartItem of cart.items) {
+  for (const cartItem of cartItems) {
     const product = validProducts.find(p => p!._id!.toString() === cartItem.productId);
     if (!product) {
       throw new AppError(`Product ${cartItem.productId} not found`, { status: 400 });
     }
 
-    // Check inventory availability
-    try {
-      const inventoryItem = await inventoryPresenter.getInventoryItem(cartItem.productId);
-      if (inventoryItem.availableStock < cartItem.quantity) {
-        throw new AppError(`Insufficient stock for ${product.title}. Available: ${inventoryItem.availableStock}, Requested: ${cartItem.quantity}`, { status: 400 });
-      }
-      
-      // Reserve stock
-      await inventoryPresenter.reserveStock(cartItem.productId, cartItem.quantity);
-      inventoryItems.push({ productId: cartItem.productId, quantity: cartItem.quantity });
-    } catch (error) {
-      // If inventory item doesn't exist, check product stock as fallback
-      if (product.stock !== undefined && product.stock < cartItem.quantity) {
-        throw new AppError(`Insufficient stock for ${product.title}. Available: ${product.stock}, Requested: ${cartItem.quantity}`, { status: 400 });
-      }
+    // Check product stock availability
+    if (product.stock !== undefined && product.stock < cartItem.quantity) {
+      throw new AppError(`Insufficient stock for ${product.title}. Available: ${product.stock}, Requested: ${cartItem.quantity}`, { status: 400 });
     }
 
     orderItems.push({
       productId: cartItem.productId,
       title: product.title,
       slug: product.slug,
-      image: product.images[0] || '',
       price: product.price.amount,
       quantity: cartItem.quantity,
-      brand: product.brand,
-      sku: product.sku,
+      image: product.images[0] || '',
+      sku: product.sku || '',
+      brand: product.brand || ''
     });
   }
 
   // Calculate totals
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const freeShippingThreshold = 2000; // BDT 2000
-  const standardShipping = 100; // BDT 100
-  const shipping = subtotal >= freeShippingThreshold ? 0 : standardShipping;
-  const tax = 0; // No VAT for small amounts in Bangladesh
-  const discount = 0; // TODO: Implement discount logic
-  const total = subtotal + shipping + tax - discount;
+  const shippingCost = 100; // Fixed shipping cost
+  const total = subtotal + shippingCost;
 
   // Create shipping address
   const shippingAddress: ShippingAddress = {
@@ -250,131 +200,83 @@ export async function createGuestOrderFromCart(sessionId: string, orderData: Cre
     address: orderData.address,
     city: orderData.city,
     area: orderData.area,
-    postalCode: orderData.postalCode,
+    postalCode: orderData.postalCode
   };
 
-  // Create guest order object
-  const order: Order = {
-    orderNumber: generateOrderNumber(),
-    guestId: sessionId,
+  // Generate order number
+  const orderNumber = generateOrderNumber();
+
+  // Create order
+  const order: Omit<Order, '_id' | 'createdAt' | 'updatedAt'> = {
+    orderNumber,
+    userId: undefined, // Guest order
     items: orderItems,
-    subtotal,
-    shipping,
-    tax,
-    discount,
-    total,
-    currency: 'BDT',
-    status: 'pending',
     shippingAddress,
     paymentInfo: {
       method: orderData.paymentMethod,
-      status: orderData.paymentMethod === 'cod' ? 'pending' : 'pending',
+      status: orderData.paymentStatus === 'paid' ? 'completed' : orderData.paymentStatus
     },
-    notes: orderData.notes,
-    isGuestOrder: true,
+    status: 'pending',
+    subtotal,
+    shipping: shippingCost,
+    tax: 0,
+    discount: 0,
+    total,
+    currency: 'BDT',
+    notes: orderData.notes || ''
   };
 
-  // Auto-create account for guest if they provided email OR phone
-  let autoCreatedUserId: string | undefined;
-  const hasEmail = orderData.email && orderData.email.includes('@');
-  const hasPhone = orderData.phone && orderData.phone.length >= 10;
-  
-  if (hasEmail || hasPhone) {
-    try {
-      const { autoCreateGuestAccount } = await import('../auth/presenter.js');
-      autoCreatedUserId = await autoCreateGuestAccount({
-        email: orderData.email || '',
-        phone: orderData.phone,
-        firstName: orderData.firstName,
-        lastName: orderData.lastName || ''
-      });
-      
-      // If account created, link order to user instead of guest
-      if (autoCreatedUserId) {
-        order.userId = autoCreatedUserId;
-        order.isGuestOrder = false;
-        delete order.guestId;
+  const createdOrder = await orderRepo.insertOrder(order as any);
+
+  // Track analytics events
+  try {
+    await analyticsPresenter.trackEvent({
+      sessionId: 'guest',
+      eventType: 'guest_order_created',
+      eventData: {
+        orderId: createdOrder._id,
+        orderNumber: createdOrder.orderNumber,
+        total: createdOrder.total,
+        itemCount: createdOrder.items.length
       }
-    } catch (error) {
-      console.error('Failed to auto-create account:', error);
-      // Continue with guest order if account creation fails
-    }
+    });
+  } catch (error) {
+    console.error('Failed to track guest order creation:', error);
   }
 
-  // Insert order
-  const createdOrder = await orderRepo.insertOrder(order);
-
-  // Clear the guest cart after successful order
-  await cartRepo.saveCart({ ...cart, items: [] });
-
-  // Send order success SMS notification
+  // Send SMS notification
   try {
-    await sendOrderSuccessSMS(createdOrder.shippingAddress.phone, createdOrder.orderNumber);
+    await sendOrderSuccessSMS(orderData.phone, createdOrder.orderNumber);
   } catch (error) {
-    console.error('Failed to send order success SMS:', error);
-    // Don't fail the order creation if SMS fails
+    console.error('Failed to send order SMS:', error);
   }
 
   return createdOrder;
 }
 
-export async function listMyOrders(userId: string): Promise<Order[]> {
-  return orderRepo.listOrdersByUser(userId);
+function generateOrderNumber(): string {
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  return `SC-${timestamp}${random}`;
 }
 
-export async function getOrderById(orderId: string, userId: string): Promise<Order> {
-  const order = await orderRepo.getOrderById(orderId);
-  if (!order) {
-    throw new AppError('Order not found', { status: 404 });
-  }
-  
-  // Ensure user can only access their own orders
-  if (order.userId !== userId) {
-    throw new AppError('Access denied', { status: 403 });
-  }
-  
-  return order;
+export async function getOrdersByUser(userId: string, page: number = 1, limit: number = 10): Promise<{ orders: Order[]; total: number }> {
+  const orders = await orderRepo.listOrdersByUser(userId);
+  return { orders, total: orders.length };
 }
 
-export async function getOrderByIdPublic(orderId: string): Promise<Order> {
-  const order = await orderRepo.getOrderById(orderId);
-  if (!order) {
-    throw new AppError('Order not found', { status: 404 });
-  }
-  
-  // Return order details without user authentication check
-  // This is used for order confirmation pages
-  return order;
+export async function getOrderById(orderId: string): Promise<Order | null> {
+  return orderRepo.getOrderById(orderId);
 }
 
-export async function cancelOrder(orderId: string, userId: string, reason?: string): Promise<Order> {
-  const order = await orderRepo.getOrderById(orderId);
-  if (!order) {
-    throw new AppError('Order not found', { status: 404 });
+export async function updateOrderStatus(orderId: string, status: string): Promise<Order | null> {
+  const success = await orderRepo.updateOrderStatus(orderId, status as any);
+  if (success) {
+    return orderRepo.getOrderById(orderId);
   }
-  
-  // Ensure user can only cancel their own orders
-  if (order.userId !== userId) {
-    throw new AppError('Access denied', { status: 403 });
-  }
-  
-  // Check if order can be cancelled
-  if (['shipped', 'delivered', 'cancelled', 'refunded'].includes(order.status)) {
-    throw new AppError('Order cannot be cancelled', { status: 400 });
-  }
-  
-  // Update order status
-  const updatedOrder = await orderRepo.updateOrder(orderId, {
-    status: 'cancelled',
-    notes: reason ? `${order.notes || ''}\nCancellation reason: ${reason}`.trim() : order.notes,
-  });
-  
-  // TODO: In production:
-  // - Restore inventory/stock
-  // - Process refund if payment was made
-  // - Send cancellation notification
-  
-  return updatedOrder;
+  return null;
 }
 
-
+export async function getOrders(page: number = 1, limit: number = 10, filters: any = {}): Promise<{ orders: Order[]; total: number }> {
+  return orderRepo.getOrders(page, limit, filters);
+}

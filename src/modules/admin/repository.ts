@@ -8,6 +8,7 @@ import type {
   SystemSettings 
 } from './model.js';
 import type { Category } from '../catalog/model.js';
+import { getAllDescendantCategoryIds } from '../catalog/repository.js';
 import type { User } from '../auth/model.js';
 import type { Product } from '../catalog/model.js';
 import type { Order } from '../orders/model.js';
@@ -109,7 +110,9 @@ export async function getProducts(
   // Build query
   const query: any = {};
   if (filters.category) {
-    query.categoryIds = filters.category; // Product uses categoryIds array
+    // Get all descendant category IDs (including the category itself)
+    const allCategoryIds = await getAllDescendantCategoryIds(filters.category);
+    query.categoryIds = { $in: allCategoryIds }; // Product uses categoryIds array
   }
   if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
     query['price.amount'] = {}; // Price is an object with amount field
@@ -239,14 +242,6 @@ export async function updateProduct(productId: string, productData: any): Promis
   return null;
 }
 
-export async function updateProductStock(productId: string, stock: number): Promise<boolean> {
-  const db = await getDb();
-  const result = await db.collection('products').updateOne(
-    { _id: new ObjectId(productId) },
-    { $set: { stock, updatedAt: new Date() } }
-  );
-  return result.modifiedCount > 0;
-}
 
 export async function deleteProduct(productId: string): Promise<boolean> {
   const db = await getDb();
@@ -404,6 +399,75 @@ export async function getDashboardStats(): Promise<any> {
     refundedOrders,
     lowStockProducts
   };
+}
+
+// Get top selling products from orders
+export async function getTopSellingProducts(limit: number = 5): Promise<Array<{
+  productId: string;
+  name: string;
+  sales: number;
+  revenue: number;
+}>> {
+  const db = await getDb();
+  
+  try {
+    const pipeline = [
+      // Match only delivered, processing, or confirmed orders (exclude cancelled/refunded)
+      {
+        $match: {
+          status: { $in: ['delivered', 'processing', 'confirmed'] },
+          $nor: [{ status: 'refunded' }, { status: 'cancelled' }]
+        }
+      },
+      // Unwind the items array to work with individual products
+      { $unwind: '$items' },
+      // Group by productId and sum quantities and revenue
+      {
+        $group: {
+          _id: '$items.productId',
+          totalQuantity: { $sum: '$items.quantity' },
+          totalRevenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } }
+        }
+      },
+      // Lookup product details
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      // Unwind the product array (should have only one product)
+      { $unwind: '$product' },
+      // Project the required fields
+      {
+        $project: {
+          productId: '$_id',
+          name: '$product.title',
+          sales: '$totalQuantity',
+          revenue: '$totalRevenue'
+        }
+      },
+      // Sort by sales quantity (descending)
+      { $sort: { sales: -1 } },
+      // Limit results
+      { $limit: limit }
+    ];
+
+    const results = await db.collection('orders').aggregate(pipeline).toArray();
+    
+    return results.map(result => ({
+      productId: result.productId.toString(),
+      name: result.name,
+      sales: result.sales,
+      revenue: result.revenue
+    }));
+  } catch (error) {
+    console.error('Error fetching top selling products:', error);
+    // Return empty array on error
+    return [];
+  }
 }
 
 // System Settings

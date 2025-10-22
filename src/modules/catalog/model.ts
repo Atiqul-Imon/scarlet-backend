@@ -65,6 +65,7 @@ export interface Product {
   };
   isActive?: boolean;
   isFeatured?: boolean;
+  trackInventory?: boolean;
   homepageSection?: 'new-arrivals' | 'skincare-essentials' | 'makeup-collection' | null;
   seoTitle?: string;
   seoDescription?: string;
