@@ -115,7 +115,7 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
   const createdOrder = await orderRepo.insertOrder(order as any);
 
   // Clear cart after successful order creation
-  await cartRepo.saveCart({ userId, items: [] });
+  await cartRepo.saveCart({ userId, items: [], updatedAt: new Date().toISOString() });
 
   // Track analytics events
   try {
