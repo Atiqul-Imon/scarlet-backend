@@ -60,11 +60,35 @@ export async function getProductsByHomepageSection(homepageSection: string) {
 }
 
 export async function createCategory(categoryData: any) {
+  // Validate required fields
   if (!categoryData.name || !categoryData.slug) {
     throw new AppError('Category name and slug are required', { status: 400 });
   }
   
-  return repo.createCategory(categoryData);
+  // Validate slug format (alphanumeric, hyphens, underscores only)
+  const slugRegex = /^[a-z0-9-_]+$/;
+  if (!slugRegex.test(categoryData.slug)) {
+    throw new AppError('Category slug must contain only lowercase letters, numbers, hyphens, and underscores', { status: 400 });
+  }
+  
+  // Validate name length
+  if (categoryData.name.length < 2 || categoryData.name.length > 100) {
+    throw new AppError('Category name must be between 2 and 100 characters', { status: 400 });
+  }
+  
+  // Validate slug length
+  if (categoryData.slug.length < 2 || categoryData.slug.length > 50) {
+    throw new AppError('Category slug must be between 2 and 50 characters', { status: 400 });
+  }
+  
+  try {
+    return await repo.createCategory(categoryData);
+  } catch (error: any) {
+    if (error.message && error.message.includes('already exists')) {
+      throw new AppError(error.message, { status: 409 });
+    }
+    throw error;
+  }
 }
 
 export async function updateCategory(id: string, categoryData: any) {

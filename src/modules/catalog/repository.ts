@@ -140,8 +140,20 @@ export async function getCategoryById(id: string): Promise<Category | null> {
   return db.collection<Category>('categories').findOne({ _id: new ObjectId(id) } as any);
 }
 
+export async function getCategoryBySlug(slug: string): Promise<Category | null> {
+  const db = await getDb();
+  return db.collection<Category>('categories').findOne({ slug });
+}
+
 export async function createCategory(categoryData: any): Promise<Category> {
   const db = await getDb();
+  
+  // Check if category with same slug already exists
+  const existingCategory = await getCategoryBySlug(categoryData.slug);
+  if (existingCategory) {
+    throw new Error(`Category with slug '${categoryData.slug}' already exists`);
+  }
+  
   const category = {
     ...categoryData,
     createdAt: new Date().toISOString(),
