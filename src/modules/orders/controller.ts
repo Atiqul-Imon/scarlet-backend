@@ -3,6 +3,7 @@ import { ok, fail } from '../../core/http/response.js';
 import { asyncHandler } from '../../core/http/asyncHandler.js';
 import * as presenter from './presenter.js';
 import type { CreateOrderRequest } from './presenter.js';
+import * as cartRepo from '../cart/repository.js';
 
 // Validation helpers
 const validateOrderData = (data: any): { valid: boolean; errors: Record<string, string> } => {
@@ -137,6 +138,15 @@ export async function createGuestOrder(req: any, res: any) {
   }
 
   try {
+    // Get cart items from session
+    const cart = await cartRepo.getOrCreateGuestCart(sessionId);
+    if (!cart || !cart.items.length) {
+      return fail(res, { 
+        message: 'Your cart is empty. Please add items before placing an order.',
+        code: 'EMPTY_CART' 
+      }, 400);
+    }
+
     const orderData: CreateOrderRequest = {
       firstName: req.body.firstName.trim(),
       lastName: req.body.lastName?.trim() || '',
@@ -151,7 +161,7 @@ export async function createGuestOrder(req: any, res: any) {
       notes: req.body.notes?.trim() || undefined,
     };
 
-    const order = await presenter.createFromGuestCart(sessionId, orderData);
+    const order = await presenter.createFromGuestCart(cart.items, orderData);
     ok(res, order);
   } catch (error: any) {
     if (error.message.includes('Cart is empty')) {
