@@ -266,8 +266,7 @@ async function generateSearchSuggestions(query: string, db: any): Promise<string
     .distinct('brand', {
       brand: { $regex: query, $options: 'i' },
       isActive: { $ne: false }
-    })
-    .limit(3);
+    });
   
   suggestions.push(...brandSuggestions);
   
@@ -276,8 +275,7 @@ async function generateSearchSuggestions(query: string, db: any): Promise<string
     .distinct('tags', {
       tags: { $in: [new RegExp(query, 'i')] },
       isActive: { $ne: false }
-    })
-    .limit(3);
+    });
   
   suggestions.push(...tagSuggestions.flat());
   
