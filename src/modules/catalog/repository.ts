@@ -3,8 +3,23 @@ import type { Category, Product, CategoryTree, CategoryHierarchy } from './model
 import { catalogCache } from './cache.js';
 
 export async function listCategories(): Promise<Category[]> {
+  // Try cache first
+  const cached = await catalogCache.getCategories();
+  if (cached) {
+    return cached;
+  }
+
   const db = await getDb();
-  return db.collection<Category>('categories').find({ isActive: { $ne: false } }).limit(200).toArray();
+  const categories = await db.collection<Category>('categories')
+    .find({ isActive: { $ne: false } })
+    .sort({ sortOrder: 1, name: 1 })
+    .limit(200)
+    .toArray();
+  
+  // Cache the results
+  await catalogCache.setCategories(categories);
+  
+  return categories;
 }
 
 export async function listProducts(): Promise<Product[]> {

@@ -21,7 +21,8 @@ const CACHE_PREFIX = {
   SEARCH_RESULTS: 'search:results:',
   SEARCH_SUGGESTIONS: 'search:suggestions:',
   POPULAR_SEARCHES: 'search:popular:',
-  SEARCH_ANALYTICS: 'search:analytics:'
+  SEARCH_ANALYTICS: 'search:analytics:',
+  CATEGORIES: 'categories:list'
 };
 
 export class CatalogCache {
@@ -31,6 +32,34 @@ export class CatalogCache {
     // Redis client is already initialized as a singleton
   }
   
+  /**
+   * Get categories from cache
+   */
+  async getCategories(): Promise<any[] | null> {
+    try {
+      const cached = await this.redis.get(CACHE_PREFIX.CATEGORIES);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      console.error('Categories cache get error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Set categories in cache
+   */
+  async setCategories(categories: any[]): Promise<void> {
+    try {
+      await this.redis.set(
+        CACHE_PREFIX.CATEGORIES,
+        JSON.stringify(categories),
+        CACHE_TTL.CATEGORY_LIST
+      );
+    } catch (error) {
+      console.error('Categories cache set error:', error);
+    }
+  }
+
   /**
    * Get product by slug from cache
    */
