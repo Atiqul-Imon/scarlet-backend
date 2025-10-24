@@ -439,8 +439,8 @@ export async function getSearchSuggestions(query: string, limit: number = 8): Pr
   
   const searchTerm = query.trim();
   
-  // Get product suggestions
-  const products = await db.collection<Product>('products')
+  // Get product suggestions with all necessary fields for cart functionality
+  const products = await db.collection('products')
     .find({
       $or: [
         { title: { $regex: searchTerm, $options: 'i' } },
@@ -449,9 +449,21 @@ export async function getSearchSuggestions(query: string, limit: number = 8): Pr
       ],
       isActive: { $ne: false }
     })
+    .project({
+      _id: 1,
+      title: 1,
+      slug: 1,
+      brand: 1,
+      price: 1,
+      images: 1,
+      stock: 1,
+      rating: 1,
+      isBestSeller: 1,
+      isNewArrival: 1
+    })
     .sort({ isBestSeller: -1, 'rating.average': -1 })
     .limit(limit)
-    .toArray();
+    .toArray() as Product[];
   
   // Get brand suggestions
   const brandResults = await db.collection('products')
