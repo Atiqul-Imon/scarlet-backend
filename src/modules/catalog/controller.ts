@@ -2,8 +2,9 @@ import type { Request, Response } from 'express';
 import { ok } from '../../core/http/response.js';
 import * as presenter from './presenter.js';
 
-export async function categories(_req: Request, res: Response) {
-  const result = await presenter.getCategories();
+export async function categories(req: Request, res: Response) {
+  const { ids } = req.query;
+  const result = await presenter.getCategories(ids as string);
   ok(res, result);
 }
 

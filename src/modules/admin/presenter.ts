@@ -134,7 +134,7 @@ export async function createProduct(productData: any) {
       attributes: {
         category: productData.category,
         subcategory: productData.subcategory,
-        cost: productData.cost || 0
+        cost: productData.cost
       },
       homepageSection: productData.homepageSection || null,
       variants: productData.variants || []
@@ -203,7 +203,7 @@ export async function updateProduct(productId: string, productData: any) {
       attributes: {
         category: productData.category,
         subcategory: productData.subcategory,
-        cost: productData.cost || 0
+        cost: productData.cost
       },
       homepageSection: productData.homepageSection || null,
       variants: productData.variants || []

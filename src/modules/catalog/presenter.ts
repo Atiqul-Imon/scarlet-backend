@@ -2,7 +2,11 @@ import * as repo from './repository.js';
 import { AppError } from '../../core/errors/AppError.js';
 import { catalogCache } from './cache.js';
 
-export async function getCategories() {
+export async function getCategories(ids?: string) {
+  if (ids) {
+    const categoryIds = ids.split(',').filter(Boolean);
+    return repo.getCategoriesByIds(categoryIds);
+  }
   return repo.listCategories();
 }
 

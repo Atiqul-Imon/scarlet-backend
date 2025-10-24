@@ -22,6 +22,22 @@ export async function listCategories(): Promise<Category[]> {
   return categories;
 }
 
+export async function getCategoriesByIds(ids: string[]): Promise<Category[]> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  
+  // Convert string IDs to ObjectId instances
+  const objectIds = ids.map(id => new ObjectId(id));
+  
+  return db.collection<Category>('categories')
+    .find({ 
+      _id: { $in: objectIds },
+      isActive: { $ne: false } 
+    })
+    .sort({ sortOrder: 1, name: 1 })
+    .toArray();
+}
+
 export async function listProducts(): Promise<Product[]> {
   const db = await getDb();
   return db.collection<Product>('products').find({ isActive: { $ne: false } }).limit(200).toArray();
