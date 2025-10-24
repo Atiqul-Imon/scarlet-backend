@@ -24,14 +24,11 @@ export async function listCategories(): Promise<Category[]> {
 
 export async function getCategoriesByIds(ids: string[]): Promise<Category[]> {
   const db = await getDb();
-  const { ObjectId } = await import('mongodb');
   
-  // Convert string IDs to ObjectId instances
-  const objectIds = ids.map(id => new ObjectId(id));
-  
+  // Use string IDs directly - MongoDB can match string IDs to _id fields
   return db.collection<Category>('categories')
     .find({ 
-      _id: { $in: objectIds },
+      _id: { $in: ids },
       isActive: { $ne: false } 
     })
     .sort({ sortOrder: 1, name: 1 })
