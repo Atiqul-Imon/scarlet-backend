@@ -47,6 +47,31 @@ export async function updateOrder(orderId: string, updates: Partial<Order>): Pro
   return updatedOrder;
 }
 
+/**
+ * Update order payment status specifically
+ */
+export async function updateOrderPaymentStatus(orderId: string, paymentStatus: string): Promise<boolean> {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  
+  try {
+    const result = await db.collection<Order>('orders').updateOne(
+      { _id: new ObjectId(orderId) } as any,
+      { 
+        $set: { 
+          'paymentInfo.status': paymentStatus,
+          updatedAt: now 
+        } 
+      }
+    );
+    
+    return result.modifiedCount > 0;
+  } catch (error) {
+    console.error('Error updating order payment status:', error);
+    return false;
+  }
+}
+
 export async function listOrdersPaginated(
   filters: {
     userId?: string;

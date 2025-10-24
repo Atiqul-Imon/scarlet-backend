@@ -66,6 +66,112 @@ export async function getProductById(id: string): Promise<Product | null> {
   return product;
 }
 
+/**
+ * ATOMIC STOCK OPERATIONS - Critical for e-commerce integrity
+ */
+
+/**
+ * Atomically decrement product stock
+ * Only succeeds if sufficient stock is available
+ * Returns true if successful, false if insufficient stock
+ */
+export async function decrementStock(productId: string, quantity: number): Promise<boolean> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  
+  try {
+    const result = await db.collection('products').updateOne(
+      { 
+        _id: new ObjectId(productId),
+        stock: { $gte: quantity } // Only update if sufficient stock
+      },
+      { 
+        $inc: { stock: -quantity } // Atomic decrement
+      }
+    );
+    
+    // Invalidate cache after stock change
+    if (result.modifiedCount > 0) {
+      await catalogCache.invalidateProductStock(productId);
+    }
+    
+    return result.modifiedCount > 0;
+  } catch (error) {
+    console.error('Error decrementing stock:', error);
+    return false;
+  }
+}
+
+/**
+ * Atomically increment product stock (for cancellations/refunds)
+ */
+export async function incrementStock(productId: string, quantity: number): Promise<boolean> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  
+  try {
+    const result = await db.collection('products').updateOne(
+      { _id: new ObjectId(productId) },
+      { 
+        $inc: { stock: quantity } // Atomic increment
+      }
+    );
+    
+    // Invalidate cache after stock change
+    if (result.modifiedCount > 0) {
+      await catalogCache.invalidateProductStock(productId);
+    }
+    
+    return result.modifiedCount > 0;
+  } catch (error) {
+    console.error('Error incrementing stock:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if sufficient stock is available without modifying
+ */
+export async function checkStockAvailability(productId: string, quantity: number): Promise<boolean> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  
+  try {
+    const product = await db.collection('products').findOne(
+      { 
+        _id: new ObjectId(productId),
+        stock: { $gte: quantity }
+      },
+      { projection: { _id: 1 } }
+    );
+    
+    return product !== null;
+  } catch (error) {
+    console.error('Error checking stock availability:', error);
+    return false;
+  }
+}
+
+/**
+ * Get current stock level for a product
+ */
+export async function getCurrentStock(productId: string): Promise<number> {
+  const db = await getDb();
+  const { ObjectId } = await import('mongodb');
+  
+  try {
+    const product = await db.collection('products').findOne(
+      { _id: new ObjectId(productId) },
+      { projection: { stock: 1 } }
+    );
+    
+    return product?.stock || 0;
+  } catch (error) {
+    console.error('Error getting current stock:', error);
+    return 0;
+  }
+}
+
 // Helper function to get all descendant category IDs for a given category
 export async function getAllDescendantCategoryIds(categoryId: string): Promise<string[]> {
   const db = await getDb();

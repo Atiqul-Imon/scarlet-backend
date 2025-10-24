@@ -185,6 +185,35 @@ export class CatalogCache {
       console.error('Cache invalidation error:', error);
     }
   }
+
+  /**
+   * Invalidate product stock cache specifically
+   * Used when stock levels change to ensure fresh data
+   */
+  async invalidateProductStock(productId: string): Promise<void> {
+    try {
+      // Invalidate all product-related caches
+      await this.redis.del(`${CACHE_PREFIX.PRODUCT_BY_ID}${productId}`);
+      
+      // Get product slug to invalidate slug-based cache
+      const { getDb } = await import('../../core/db/mongoClient.js');
+      const db = await getDb();
+      const { ObjectId } = await import('mongodb');
+      const product = await db.collection('products').findOne(
+        { _id: new ObjectId(productId) },
+        { projection: { slug: 1 } }
+      );
+      
+      if (product?.slug) {
+        await this.redis.del(`${CACHE_PREFIX.PRODUCT_BY_SLUG}${product.slug}`);
+      }
+      
+      // Invalidate product lists that might show stock
+      await this.invalidateListCaches();
+    } catch (error) {
+      console.error('Stock cache invalidation error:', error);
+    }
+  }
   
   /**
    * Invalidate all list caches (categories, sections)

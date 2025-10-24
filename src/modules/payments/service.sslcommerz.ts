@@ -161,35 +161,80 @@ export async function handleIPN(ipnData: any): Promise<{ success: boolean; error
       // Payment successful - update order to confirmed/paid
       console.log('Payment successful for order:', transactionId);
       
-      // TODO: Update order status in database
-      // await updateOrderStatus(transactionId, 'paid', {
-      //   amount,
-      //   currency,
-      //   paymentMethod,
-      //   bankTransactionId
-      // });
+      try {
+        // Import order repository to update order status
+        const orderRepo = await import('../orders/repository.js');
+        const catalogRepo = await import('../catalog/repository.js');
+        
+        // Find order by order number (transactionId is the order number)
+        const order = await orderRepo.getOrderByOrderNumber(transactionId);
+        
+        if (order) {
+          // Update order status to confirmed
+          await orderRepo.updateOrderStatus(order._id!.toString(), 'confirmed');
+          
+          // Update payment status to completed
+          await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'completed');
+          
+          console.log('Order status updated to confirmed for:', transactionId);
+        } else {
+          console.error('Order not found for transaction:', transactionId);
+        }
+      } catch (error) {
+        console.error('Error updating order status:', error);
+      }
       
     } else if (status === 'FAILED') {
       // Payment failed - update order to failed
       console.log('Payment failed for order:', transactionId);
       
-      // TODO: Update order status in database
-      // await updateOrderStatus(transactionId, 'failed', {
-      //   reason: 'Payment failed',
-      //   amount,
-      //   currency
-      // });
+      try {
+        const orderRepo = await import('../orders/repository.js');
+        const catalogRepo = await import('../catalog/repository.js');
+        
+        const order = await orderRepo.getOrderByOrderNumber(transactionId);
+        
+        if (order) {
+          // Update order status to failed
+          await orderRepo.updateOrderStatus(order._id!.toString(), 'cancelled');
+          
+          // RESTORE STOCK for failed payment
+          for (const item of order.items) {
+            await catalogRepo.incrementStock(item.productId, item.quantity);
+            console.log(`Restored ${item.quantity} units of stock for product ${item.productId}`);
+          }
+          
+          console.log('Order status updated to cancelled and stock restored for:', transactionId);
+        }
+      } catch (error) {
+        console.error('Error handling failed payment:', error);
+      }
       
     } else if (status === 'CANCELLED') {
       // Payment cancelled - update order to cancelled
       console.log('Payment cancelled for order:', transactionId);
       
-      // TODO: Update order status in database
-      // await updateOrderStatus(transactionId, 'cancelled', {
-      //   reason: 'Payment cancelled',
-      //   amount,
-      //   currency
-      // });
+      try {
+        const orderRepo = await import('../orders/repository.js');
+        const catalogRepo = await import('../catalog/repository.js');
+        
+        const order = await orderRepo.getOrderByOrderNumber(transactionId);
+        
+        if (order) {
+          // Update order status to cancelled
+          await orderRepo.updateOrderStatus(order._id!.toString(), 'cancelled');
+          
+          // RESTORE STOCK for cancelled payment
+          for (const item of order.items) {
+            await catalogRepo.incrementStock(item.productId, item.quantity);
+            console.log(`Restored ${item.quantity} units of stock for product ${item.productId}`);
+          }
+          
+          console.log('Order status updated to cancelled and stock restored for:', transactionId);
+        }
+      } catch (error) {
+        console.error('Error handling cancelled payment:', error);
+      }
     }
 
     return { success: true };

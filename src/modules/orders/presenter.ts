@@ -46,18 +46,24 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
     throw new AppError('Some products in cart are no longer available', { status: 400 });
   }
 
-  // Create order items with product details and check stock
+  // Create order items with ATOMIC stock operations
   const orderItems: OrderItem[] = [];
+  const stockOperations: Array<{ productId: string; quantity: number }> = [];
   
+  // First pass: Validate products and prepare stock operations
   for (const cartItem of cart.items) {
     const product = validProducts.find(p => p!._id!.toString() === cartItem.productId);
     if (!product) {
       throw new AppError(`Product ${cartItem.productId} not found`, { status: 400 });
     }
 
-    // Check product stock availability
-    if (product.stock !== undefined && product.stock < cartItem.quantity) {
-      throw new AppError(`Insufficient stock for ${product.title}. Available: ${product.stock}, Requested: ${cartItem.quantity}`, { status: 400 });
+    // Check if product tracks inventory
+    if (product.trackInventory !== false && product.stock !== undefined) {
+      // Add to stock operations for atomic processing
+      stockOperations.push({
+        productId: cartItem.productId,
+        quantity: cartItem.quantity
+      });
     }
 
     orderItems.push({
@@ -70,6 +76,27 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
       sku: product.sku || '',
       brand: product.brand || ''
     });
+  }
+
+  // ATOMIC STOCK OPERATIONS - Process all stock decrements atomically
+  for (const stockOp of stockOperations) {
+    const stockDecremented = await catalogRepo.decrementStock(stockOp.productId, stockOp.quantity);
+    if (!stockDecremented) {
+      // If any stock operation fails, we need to restore previously decremented stock
+      // This is a critical rollback mechanism
+      for (const rollbackOp of stockOperations) {
+        if (rollbackOp.productId === stockOp.productId) break; // Don't rollback the failed one
+        await catalogRepo.incrementStock(rollbackOp.productId, rollbackOp.quantity);
+      }
+      
+      // Get current stock for error message
+      const currentStock = await catalogRepo.getCurrentStock(stockOp.productId);
+      const product = validProducts.find(p => p!._id!.toString() === stockOp.productId);
+      throw new AppError(
+        `Insufficient stock for ${product?.title || 'product'}. Available: ${currentStock}, Requested: ${stockOp.quantity}`, 
+        { status: 400 }
+      );
+    }
   }
 
   // Calculate totals
@@ -160,18 +187,24 @@ export async function createFromGuestCart(cartItems: any[], orderData: CreateOrd
     throw new AppError('Some products in cart are no longer available', { status: 400 });
   }
 
-  // Create order items with product details and check stock
+  // Create order items with ATOMIC stock operations
   const orderItems: OrderItem[] = [];
+  const stockOperations: Array<{ productId: string; quantity: number }> = [];
   
+  // First pass: Validate products and prepare stock operations
   for (const cartItem of cartItems) {
     const product = validProducts.find(p => p!._id!.toString() === cartItem.productId);
     if (!product) {
       throw new AppError(`Product ${cartItem.productId} not found`, { status: 400 });
     }
 
-    // Check product stock availability
-    if (product.stock !== undefined && product.stock < cartItem.quantity) {
-      throw new AppError(`Insufficient stock for ${product.title}. Available: ${product.stock}, Requested: ${cartItem.quantity}`, { status: 400 });
+    // Check if product tracks inventory
+    if (product.trackInventory !== false && product.stock !== undefined) {
+      // Add to stock operations for atomic processing
+      stockOperations.push({
+        productId: cartItem.productId,
+        quantity: cartItem.quantity
+      });
     }
 
     orderItems.push({
@@ -184,6 +217,27 @@ export async function createFromGuestCart(cartItems: any[], orderData: CreateOrd
       sku: product.sku || '',
       brand: product.brand || ''
     });
+  }
+
+  // ATOMIC STOCK OPERATIONS - Process all stock decrements atomically
+  for (const stockOp of stockOperations) {
+    const stockDecremented = await catalogRepo.decrementStock(stockOp.productId, stockOp.quantity);
+    if (!stockDecremented) {
+      // If any stock operation fails, we need to restore previously decremented stock
+      // This is a critical rollback mechanism
+      for (const rollbackOp of stockOperations) {
+        if (rollbackOp.productId === stockOp.productId) break; // Don't rollback the failed one
+        await catalogRepo.incrementStock(rollbackOp.productId, rollbackOp.quantity);
+      }
+      
+      // Get current stock for error message
+      const currentStock = await catalogRepo.getCurrentStock(stockOp.productId);
+      const product = validProducts.find(p => p!._id!.toString() === stockOp.productId);
+      throw new AppError(
+        `Insufficient stock for ${product?.title || 'product'}. Available: ${currentStock}, Requested: ${stockOp.quantity}`, 
+        { status: 400 }
+      );
+    }
   }
 
   // Calculate totals

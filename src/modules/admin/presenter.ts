@@ -154,6 +154,26 @@ export async function createProduct(productData: any) {
 
 export async function updateProduct(productId: string, productData: any) {
   try {
+    // STOCK VALIDATION - Check for negative stock values
+    const newStock = productData.stock || 0;
+    if (newStock < 0) {
+      throw new AppError('Stock cannot be negative', { code: 'INVALID_STOCK' });
+    }
+
+    // Get current product to check for stock changes
+    const currentProduct = await repo.getProduct(productId);
+    if (!currentProduct) {
+      throw new AppError('Product not found', { code: 'PRODUCT_NOT_FOUND' });
+    }
+
+    // STOCK CHANGE VALIDATION - Warn if stock is being reduced significantly
+    const currentStock = currentProduct.stock || 0;
+    const stockReduction = currentStock - newStock;
+    
+    if (stockReduction > 0 && stockReduction > (currentStock * 0.5)) {
+      logger.warn(`Significant stock reduction for product ${productId}: ${currentStock} → ${newStock} (${stockReduction} units)`);
+    }
+
     // Transform frontend data to match backend model
     const product = {
       title: productData.name,
@@ -169,7 +189,7 @@ export async function updateProduct(productId: string, productData: any) {
       barcode: productData.barcode || '',
       brand: productData.brand || '',
       images: productData.images || [],
-      stock: productData.stock || 0,
+      stock: newStock,
       lowStockThreshold: productData.lowStockThreshold || 10,
       trackInventory: productData.trackInventory !== false,
       status: productData.status || 'draft',
@@ -190,6 +210,12 @@ export async function updateProduct(productId: string, productData: any) {
     };
 
     const updatedProduct = await repo.updateProduct(productId, product);
+    
+    // Log stock change for audit
+    if (currentStock !== newStock) {
+      logger.info(`Product ${productId} stock updated: ${currentStock} → ${newStock} (change: ${newStock - currentStock})`);
+    }
+    
     return updatedProduct;
   } catch (error) {
     logger.error({ error, productId, productData }, 'Failed to update product');
@@ -252,7 +278,28 @@ export async function updateOrderStatus(
       throw new AppError('Order not found', { code: 'ORDER_NOT_FOUND' });
     }
 
-    // Note: Stock management is now handled at product level
+    // STOCK RESTORATION LOGIC - Restore stock for cancelled/refunded orders
+    if (status === 'cancelled' || status === 'refunded') {
+      try {
+        // Import catalog repository for stock operations
+        const catalogRepo = await import('../catalog/repository.js');
+        
+        // Restore stock for each item in the order
+        for (const item of order.items) {
+          const stockRestored = await catalogRepo.incrementStock(item.productId, item.quantity);
+          if (stockRestored) {
+            logger.info(`Restored ${item.quantity} units of stock for product ${item.productId} (${item.title})`);
+          } else {
+            logger.warn(`Failed to restore stock for product ${item.productId} (${item.title})`);
+          }
+        }
+        
+        logger.info(`Stock restoration completed for order ${orderId} (${order.orderNumber})`);
+      } catch (stockError) {
+        logger.error({ stockError, orderId }, 'Failed to restore stock during order cancellation');
+        // Don't throw error - order status update should still proceed
+      }
+    }
 
     // Update the order status with proper timestamp and payment status
     const success = await repo.updateOrderStatus(orderId, status);
@@ -264,6 +311,8 @@ export async function updateOrderStatus(
     if (status === 'refunded') {
       await repo.updateOrderPaymentStatus(orderId, 'refunded');
     }
+    
+    logger.info(`Order ${orderId} status updated to ${status}`);
   } catch (error) {
     logger.error({ error, orderId, status }, 'Failed to update order status');
     if (error instanceof AppError) throw error;
