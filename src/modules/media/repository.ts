@@ -118,17 +118,9 @@ export async function updateMediaFile(
 
 export async function deleteMediaFile(id: string): Promise<boolean> {
   const db = await getDb();
-  const result = await db.collection('media').updateOne(
-    { _id: new ObjectId(id) },
-    { 
-      $set: { 
-        isActive: false,
-        updatedAt: new Date().toISOString() 
-      } 
-    }
-  );
+  const result = await db.collection('media').deleteOne({ _id: new ObjectId(id) });
   
-  return result.modifiedCount > 0;
+  return result.deletedCount > 0;
 }
 
 export async function getMediaStats(): Promise<{

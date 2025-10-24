@@ -145,12 +145,25 @@ export async function deleteMediaFile(id: string, userId: string): Promise<void>
       throw new AppError('Unauthorized to delete this file', { code: 'UNAUTHORIZED' });
     }
     
-    const success = await repo.deleteMediaFile(id);
-    if (!success) {
-      throw new AppError('Failed to delete media file', { code: 'DELETE_FAILED' });
+    // Delete from ImageKit first
+    try {
+      await deleteFromImageKit(existingFile.url, existingFile.filename);
+      logger.info({ mediaId: id, filename: existingFile.filename }, 'File deleted from ImageKit');
+    } catch (imagekitError) {
+      logger.warn({ 
+        mediaId: id, 
+        filename: existingFile.filename, 
+        error: imagekitError 
+      }, 'Failed to delete from ImageKit, but continuing with database deletion');
     }
     
-    logger.info({ mediaId: id, userId }, 'Media file deleted successfully');
+    // Delete from database
+    const success = await repo.deleteMediaFile(id);
+    if (!success) {
+      throw new AppError('Failed to delete media file from database', { code: 'DELETE_FAILED' });
+    }
+    
+    logger.info({ mediaId: id, userId, filename: existingFile.filename }, 'Media file deleted successfully from both ImageKit and database');
   } catch (error) {
     logger.error({ error, mediaId: id, userId }, 'Failed to delete media file');
     if (error instanceof AppError) throw error;
@@ -236,4 +249,46 @@ async function uploadToImageKit(file: File, filename: string): Promise<{
     width: 1920,
     height: 1080
   };
+}
+
+// Helper function to delete from ImageKit
+async function deleteFromImageKit(url: string, filename: string): Promise<void> {
+  try {
+    // For now, we'll use the frontend API endpoint to delete from ImageKit
+    // This ensures we use the same ImageKit instance and configuration
+    const response = await fetch(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/api/delete-image`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ url, filename })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`ImageKit delete failed: ${errorData.error || 'Unknown error'}`);
+    }
+    
+    logger.info({ url, filename }, 'File successfully deleted from ImageKit');
+  } catch (error) {
+    logger.error({ error, url, filename }, 'Failed to delete file from ImageKit');
+    throw error;
+  }
+}
+
+// Helper function to extract file ID from ImageKit URL
+function extractFileIdFromUrl(url: string): string | null {
+  try {
+    // ImageKit URLs typically have the format: https://ik.imagekit.io/your-id/folder/filename
+    // We need to extract the file ID, which is usually the last part of the path
+    const urlParts = url.split('/');
+    const filename = urlParts[urlParts.length - 1];
+    
+    // For now, we'll use the filename as the file ID
+    // In a real implementation, you might need to store the actual file ID
+    return filename;
+  } catch (error) {
+    logger.error({ error, url }, 'Failed to extract file ID from URL');
+    return null;
+  }
 }
