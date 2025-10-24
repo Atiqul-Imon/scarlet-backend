@@ -249,6 +249,33 @@ export async function deleteProduct(productId: string): Promise<boolean> {
   return result.deletedCount > 0;
 }
 
+// Category Management
+export async function updateCategory(categoryId: string, categoryData: any): Promise<any> {
+  const db = await getDb();
+  
+  try {
+    const updateData = {
+      ...categoryData,
+      updatedAt: new Date().toISOString()
+    };
+    
+    const result = await db.collection('categories').updateOne(
+      { _id: new ObjectId(categoryId) },
+      { $set: updateData }
+    );
+    
+    if (result.modifiedCount > 0) {
+      const updatedCategory = await db.collection('categories').findOne({ _id: new ObjectId(categoryId) });
+      return updatedCategory;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error updating category:', error);
+    throw error;
+  }
+}
+
 // Order Management
 export async function getOrders(
   filters: AdminOrderFilters = {}, 
@@ -539,23 +566,6 @@ export async function createCategory(categoryData: any): Promise<Category> {
   return { ...category, _id: result.insertedId } as Category;
 }
 
-export async function updateCategory(categoryId: string, categoryData: any): Promise<Category | null> {
-  const db = await getDb();
-  const now = new Date();
-  
-  const updateData = {
-    ...categoryData,
-    updatedAt: now
-  };
-  
-  const result = await db.collection('categories').findOneAndUpdate(
-    { _id: new ObjectId(categoryId) },
-    { $set: updateData },
-    { returnDocument: 'after' }
-  );
-  
-  return result as Category | null;
-}
 
 export async function updateCategoryStatus(categoryId: string, isActive: boolean): Promise<boolean> {
   const db = await getDb();

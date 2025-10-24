@@ -267,6 +267,39 @@ export async function getOrderById(orderId: string): Promise<Order> {
   }
 }
 
+// Category Management
+export async function updateCategory(categoryId: string, categoryData: any) {
+  try {
+    const updatedCategory = await repo.updateCategory(categoryId, categoryData);
+    return updatedCategory;
+  } catch (error) {
+    logger.error({ error, categoryId, categoryData }, 'Failed to update category');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to update category', { code: 'CATEGORY_UPDATE_ERROR' });
+  }
+}
+
+export async function updateCategorySortOrder(categoryUpdates: Array<{id: string, sortOrder: number}>) {
+  try {
+    const results = await Promise.all(
+      categoryUpdates.map(update => 
+        repo.updateCategory(update.id, { sortOrder: update.sortOrder })
+      )
+    );
+    
+    // Invalidate category cache after bulk update
+    const { catalogCache } = await import('../catalog/cache.js');
+    await catalogCache.invalidateListCaches();
+    
+    logger.info(`Updated sort order for ${categoryUpdates.length} categories`);
+    return results;
+  } catch (error) {
+    logger.error({ error, categoryUpdates }, 'Failed to update category sort order');
+    if (error instanceof AppError) throw error;
+    throw new AppError('Failed to update category sort order', { code: 'CATEGORY_SORT_UPDATE_ERROR' });
+  }
+}
+
 export async function updateOrderStatus(
   orderId: string, 
   status: 'pending' | 'confirmed' | 'processing' | 'delivered' | 'cancelled' | 'refunded'
@@ -516,29 +549,6 @@ export async function createCategory(categoryData: any) {
   }
 }
 
-export async function updateCategory(categoryId: string, categoryData: any) {
-  try {
-    // Transform frontend data to match backend model
-    const category = {
-      name: categoryData.name,
-      slug: categoryData.slug,
-      description: categoryData.description || '',
-      parentId: categoryData.parentId || null,
-      image: categoryData.image || '',
-      isActive: categoryData.isActive !== false,
-      showInHomepage: categoryData.showInHomepage || false,
-      sortOrder: categoryData.sortOrder || 0,
-      icon: categoryData.icon || ''
-    };
-
-    const updatedCategory = await repo.updateCategory(categoryId, category);
-    return updatedCategory;
-  } catch (error) {
-    logger.error({ error, categoryId, categoryData }, 'Failed to update category');
-    if (error instanceof AppError) throw error;
-    throw new AppError('Failed to update category', { code: 'CATEGORY_UPDATE_ERROR' });
-  }
-}
 
 export async function updateCategoryStatus(categoryId: string, isActive: boolean) {
   try {

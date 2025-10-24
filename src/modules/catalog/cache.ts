@@ -224,13 +224,16 @@ export class CatalogCache {
       const categoryKeys = await this.redis.keys(`${CACHE_PREFIX.PRODUCTS_BY_CATEGORY}*`);
       const sectionKeys = await this.redis.keys(`${CACHE_PREFIX.PRODUCTS_BY_SECTION}*`);
       const relatedKeys = await this.redis.keys(`${CACHE_PREFIX.RELATED_PRODUCTS}*`);
+      const categoriesKey = CACHE_PREFIX.CATEGORIES;
       
-      const allKeys = [...categoryKeys, ...sectionKeys, ...relatedKeys];
+      const allKeys = [...categoryKeys, ...sectionKeys, ...relatedKeys, categoriesKey];
       
       // Delete each key individually
       for (const key of allKeys) {
         await this.redis.del(key);
       }
+      
+      console.log('Cache invalidated for category order changes');
     } catch (error) {
       console.error('Cache invalidation error:', error);
     }

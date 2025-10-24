@@ -354,6 +354,63 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
   ok(res, { message: 'Order status updated successfully' });
 });
 
+// Category Management
+export const updateCategory = asyncHandler(async (req: Request, res: Response) => {
+  const { categoryId } = req.params;
+  const categoryData = req.body;
+  
+  const category = await presenter.updateCategory(categoryId, categoryData);
+  
+  if (!category) {
+    return fail(res, { message: 'Category not found', code: 'CATEGORY_NOT_FOUND' }, 404);
+  }
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'UPDATE_CATEGORY',
+      { categoryId, categoryName: category.name },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  ok(res, category);
+});
+
+export const updateCategorySortOrder = asyncHandler(async (req: Request, res: Response) => {
+  const { categoryUpdates } = req.body;
+  
+  if (!Array.isArray(categoryUpdates) || categoryUpdates.length === 0) {
+    return fail(res, { message: 'Category updates array is required', code: 'INVALID_CATEGORY_UPDATES' }, 400);
+  }
+  
+  // Validate each update
+  for (const update of categoryUpdates) {
+    if (!update.id || typeof update.sortOrder !== 'number') {
+      return fail(res, { message: 'Each update must have id and sortOrder', code: 'INVALID_UPDATE_FORMAT' }, 400);
+    }
+  }
+  
+  await presenter.updateCategorySortOrder(categoryUpdates);
+  
+  // Log admin activity
+  if (req.user) {
+    await presenter.logActivity(
+      req.user._id!.toString(),
+      req.user.email || req.user.phone || 'unknown',
+      'UPDATE_CATEGORY_SORT_ORDER',
+      { categoryCount: categoryUpdates.length },
+      req.ip,
+      req.headers['user-agent']
+    );
+  }
+  
+  ok(res, { message: 'Category sort order updated successfully' });
+});
+
 // Analytics
 export const getSalesAnalytics = asyncHandler(async (req: Request, res: Response) => {
   const { dateFrom, dateTo } = req.query;
@@ -519,35 +576,6 @@ export const createCategory = asyncHandler(async (req: Request, res: Response) =
   created(res, category);
 });
 
-export const updateCategory = asyncHandler(async (req: Request, res: Response) => {
-  const { categoryId } = req.params;
-  const categoryData = req.body;
-  
-  // Validate required fields
-  if (!categoryData.name || !categoryData.slug) {
-    return fail(res, { message: 'Missing required fields: name and slug are required', code: 'MISSING_REQUIRED_FIELDS' }, 400);
-  }
-  
-  const category = await presenter.updateCategory(categoryId, categoryData);
-  
-  if (!category) {
-    return fail(res, { message: 'Category not found', code: 'CATEGORY_NOT_FOUND' }, 404);
-  }
-  
-  // Log admin activity
-  if (req.user) {
-    await presenter.logActivity(
-      req.user._id!.toString(),
-      req.user.email || req.user.phone || 'unknown',
-      'UPDATE_CATEGORY',
-      { categoryId, categoryName: category.name },
-      req.ip,
-      req.headers['user-agent']
-    );
-  }
-  
-  ok(res, category);
-});
 
 export const updateCategoryStatus = asyncHandler(async (req: Request, res: Response) => {
   const { categoryId } = req.params;
