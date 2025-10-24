@@ -266,7 +266,30 @@ export async function searchProducts(query: string, options: {
   
   // Add text search with scoring
   if (query && query.trim().length > 0) {
-    baseQuery.$text = { $search: query };
+    // First, try to find categories that match the search term
+    const matchingCategories = await db.collection('categories')
+      .find({ 
+        name: { $regex: query, $options: 'i' },
+        isActive: { $ne: false }
+      })
+      .project({ _id: 1 })
+      .toArray();
+    
+    const matchingCategoryIds = matchingCategories.map(cat => cat._id);
+    
+    // Build search query that includes both text search and category matching
+    const searchConditions: any[] = [
+      { $text: { $search: query } }
+    ];
+    
+    // If we found matching categories, also search for products in those categories
+    if (matchingCategoryIds.length > 0) {
+      searchConditions.push({
+        categoryIds: { $in: matchingCategoryIds }
+      });
+    }
+    
+    baseQuery.$or = searchConditions;
   }
   
   // Add filters
@@ -482,8 +505,8 @@ export async function getSearchSuggestions(query: string, limit: number = 8): Pr
   
   const brands = brandResults.map(item => item.brand).filter(Boolean);
   
-  // Get category suggestions
-  const categoryResults = await db.collection('products')
+  // Get category suggestions - first get category IDs
+  const categoryIdResults = await db.collection('products')
     .aggregate([
       {
         $match: {
@@ -502,7 +525,22 @@ export async function getSearchSuggestions(query: string, limit: number = 8): Pr
     ])
     .toArray();
   
-  const categories = [...new Set(categoryResults.map(item => item.categoryId).filter(Boolean))];
+  // Get category names from the IDs
+  const categoryIds = categoryIdResults.map(item => item.categoryId).filter(Boolean);
+  let categories: string[] = [];
+  
+  if (categoryIds.length > 0) {
+    const { ObjectId } = await import('mongodb');
+    const categoryDocs = await db.collection('categories')
+      .find({ 
+        _id: { $in: categoryIds.map(id => new ObjectId(id)) },
+        isActive: { $ne: false }
+      })
+      .project({ name: 1 })
+      .toArray();
+    
+    categories = categoryDocs.map(cat => cat.name).filter(Boolean);
+  }
   
   return {
     products,
