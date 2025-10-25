@@ -130,13 +130,14 @@ export const updateMediaFile = asyncHandler(async (req: Request, res: Response) 
 export const deleteMediaFile = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = req.user?._id;
+  const userRole = req.user?.role;
   
   if (!userId) {
     return fail(res, { message: 'Authentication required' }, 401);
   }
 
   try {
-    await presenter.deleteMediaFile(id, userId);
+    await presenter.deleteMediaFile(id, userId, userRole);
     ok(res, { message: 'Media file deleted successfully' });
   } catch (error: any) {
     if (error.code === 'FILE_NOT_FOUND') {

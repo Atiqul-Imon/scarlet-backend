@@ -133,7 +133,7 @@ export async function updateMediaFile(
   }
 }
 
-export async function deleteMediaFile(id: string, userId: string): Promise<void> {
+export async function deleteMediaFile(id: string, userId: string, userRole?: string): Promise<void> {
   try {
     // Check if file exists and user has permission
     const existingFile = await repo.getMediaFileById(id);
@@ -141,7 +141,8 @@ export async function deleteMediaFile(id: string, userId: string): Promise<void>
       throw new AppError('Media file not found', { code: 'FILE_NOT_FOUND' });
     }
     
-    if (existingFile.uploadedBy !== userId) {
+    // Allow deletion if user is admin or if user uploaded the file
+    if (userRole !== 'admin' && existingFile.uploadedBy !== userId) {
       throw new AppError('Unauthorized to delete this file', { code: 'UNAUTHORIZED' });
     }
     
