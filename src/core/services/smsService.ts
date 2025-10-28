@@ -71,15 +71,18 @@ class SSLWirelessSMSService {
         throw new Error(`Invalid phone number format: ${phone}`);
       }
 
+      // Generate csms_id for logging and payload
+      const csmsId = options.csmsId || this.generateCSMSId();
+
       // Prepare request payload according to SSLWireless API v3 spec
       const payload = {
         api_token: this.apiToken,  // Provided by SSL for authentication (max 50 chars)
         sid: options.masking || this.sid,  // Masking name (max 20 chars)
         msisdn: normalizedPhone,  // Phone number in 8801XXXXXXXXX format
         sms: message,  // SMS body (max 1000 chars for English)
-        csms_id: options.csmsId || this.generateCSMSId()  // Unique client reference ID (max 20 chars)
+        csms_id: csmsId  // Unique client reference ID (max 20 chars)
       };
-
+      
       // Log SMS request with full details
       logger.info({
         phone: normalizedPhone,
@@ -93,7 +96,7 @@ class SSLWirelessSMSService {
           sid: options.masking || this.sid,
           msisdn: normalizedPhone,
           sms: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
-          csms_id: options.csmsId || this.generateCSMSId()
+          csms_id: csmsId
         }
       }, 'Sending SMS via SSLWireless');
 
@@ -110,7 +113,7 @@ class SSLWirelessSMSService {
 
       const response = await axios<SSLWirelessResponse>(config);
 
-      // Log response details
+      // Log response details BEFORE checking status
       logger.info({
         phone: normalizedPhone,
         statusCode: response.status,
@@ -130,6 +133,14 @@ class SSLWirelessSMSService {
 
         return response.data.smslog_id || 'SUCCESS';
       } else {
+        // Log the error details before throwing
+        logger.error({
+          phone: normalizedPhone,
+          statusCode: response.data.status_code,
+          errorMessage: response.data.error_message,
+          responseData: response.data
+        }, 'SSLWireless API Error Response');
+        
         throw new Error(
           response.data.error_message || 
           `SSLWireless API returned status code: ${response.data.status_code}`
@@ -137,13 +148,35 @@ class SSLWirelessSMSService {
       }
 
     } catch (error: any) {
-      // Log error but don't fail the entire operation
-      logger.error({
-        error: error.message,
-        phone,
-        message,
-        stack: error.stack
-      }, 'Failed to send SMS via SSLWireless');
+      // Determine error type and log accordingly
+      const isNetworkError = error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT';
+      const isAxiosError = error.response;
+      
+      if (isNetworkError) {
+        logger.error({
+          error: error.message,
+          errorCode: error.code,
+          phone: phone,
+          apiUrl: this.apiUrl,
+          stack: error.stack
+        }, 'Network Error - SSLWireless API Unreachable');
+      } else if (isAxiosError) {
+        logger.error({
+          error: error.message,
+          statusCode: error.response?.status,
+          responseData: error.response?.data,
+          phone: phone,
+          apiUrl: this.apiUrl,
+          stack: error.stack
+        }, 'HTTP Error - SSLWireless API Response');
+      } else {
+        logger.error({
+          error: error.message,
+          phone: phone,
+          message,
+          stack: error.stack
+        }, 'Failed to send SMS via SSLWireless');
+      }
 
       // In development, log to console
       if (env.nodeEnv === 'development') {
