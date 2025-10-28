@@ -1,0 +1,849 @@
+TECHNICAL SPECIFICATION OF PUSH
+SMS CONNECTIVITY API
+
+Version 3.0.0
+
+93 B New Eskaton Road
+Dhaka 1000, Bangladesh
+Phone: +880 9612222020
+Fax: +880 2 913 2172
+E-mail: service.operation@sslwireless.com
+www.sslwireless.com
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+Version:3.0.0
+
+Document History
+Date
+
+October 09,2017
+
+October 23.2019
+
+Ver.
+
+2.5.3
+
+3.0.0
+
+Description
+
+Prepared By
+
+Checked By
+
+Second Version
+
+Khaled Bin Tabib,
+Documentation
+and Compliance
+
+Ashekur
+Rahman,
+Engineering
+
+iSMS Revamp
+
+Mashroor Zaman,
+Documentation
+and Compliance
+
+Abdul Latif,
+Engineering
+
+Approved
+By
+Iftekhar
+Alam
+Ishaque,
+Engineering
+Ashekur
+Rahman,
+Engineering
+
+Disclaimer
+The information contained in these documents is confidential, privileged and only for the
+information of the intended recipient and may not be used, published or redistributed without the
+prior written consent of Software Shop Limited through any channel.
+
+Confidential
+
+Page | i
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+Table of Content
+1 Purpose of This Document ........................................................................................................ 3
+2 SMS Gateway Functionality ....................................................................................................... 4
+3 List of Status Code .................................................................................................................... 5
+3.1
+
+API Status Code ................................................................................................................ 5
+
+3.2
+
+SMS Status Code ............................................................................................................... 5
+
+4 API Specification ....................................................................................................................... 6
+4.1
+
+Single SMS ........................................................................................................................ 6
+
+4.1.1
+
+Request Parameters ...................................................................................................... 6
+
+4.1.2
+
+Sample Request ............................................................................................................ 6
+
+4.1.3
+
+Sample Response .......................................................................................................... 7
+
+4.1.4
+
+Response Parameters.................................................................................................... 7
+
+4.2
+
+Send Bulk SMS .................................................................................................................. 8
+
+4.2.1
+
+Request Parameters ...................................................................................................... 8
+
+4.2.2
+
+Sample Request ............................................................................................................ 8
+
+4.2.3
+
+Sample Response .......................................................................................................... 9
+
+4.2.4
+
+Response Parameters.................................................................................................. 10
+
+4.3
+
+Dynamic SMS .................................................................................................................. 10
+
+4.3.1
+
+Request Parameters .................................................................................................... 10
+
+4.3.2
+
+Sample Request .......................................................................................................... 11
+
+4.3.3
+
+Sample Response ........................................................................................................ 12
+
+4.3.4
+
+Response Parameters.................................................................................................. 13
+
+Confidential
+
+Page | 2
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+1 Purpose of This Document
+This document is for companies/clients, who wish to integrate with SSL’s Push SMS gateway
+hereafter referred to as Push Gateway. This document contains detailed information about the
+methods for integrating this gateway over HTTP/HTTPS protocol using GET/POST method. As a
+GET/POST client over HTTP/HTTPS protocol can be implemented by using various programming
+languages, this document is designed both as a getting started guide for the technical
+staff/developer and a reference document throughout the project implementation.
+The client system would require sending SMS messages via GET/POST of parameters as per specified
+in this document from SSL’s Push SMS Gateway. The gateway will access the parameters sent from
+the client system and send the SMS message(s) to the recipient(s) accordingly. This specification is
+under active development, any updates to the API specifications may not be notified.
+A detailed description of the API parameters is available in this document. However, in order to
+send the SMS messages via this Gateway, you are required to have the following:
+✓ a client application to send the required parameters
+✓ a registered account with SSL Wireless
+Note: The client application or server need not be limited to any platforms/languages. In this
+document we have provided typical examples for connecting to our gateway using multiple
+language in order to get you started.
+For more details or examples not included in this specification, please contact us through email at
+service.operation@sslwireless.com.
+
+Confidential
+
+Page | 3
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+2 SMS Gateway Functionality
+SSL’s Push SMS Gateway offers standard method for connecting any client application through SSLenabled system to the client application for sending SMS messages to mobile subscribers in
+Bangladesh and abroad. You can identify mobile phone number and SMS Message Body according
+to these specifications and, also integrate to the gateway via widely used web technology - HTTP.
+This API makes it easy to integrate your applications to the Push SMS Gateway.
+The following is a sample architecture reflecting the relationship between customer or user or
+subscriber, your application, SSL’s Push SMS Gateway and the telecom operators.
+
+Figure 1: SSL’s Push SMS Gateway
+The following steps exhibits the procedure of a customer receiving a SMS text from your application
+through SSL’s Push SMS gateway and the telecom operator’s SMS-C.
+1. The client application submits the Push SMS information to the SSL’s Push SMS Gateway via
+the given API parameters.
+2. The Push SMS Gateway sends the message to the respective telecom operator.
+3. The telecom operator sends the messages to the recipient mobile phone number.
+
+Confidential
+
+Page | 4
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+3 List of Status Code
+There are two types of status code for Push SMS:
+1. API Status Code
+
+2. SMS Status Code
+
+3.1 API Status Code
+The API status codes for push SMS are given below:
+Status
+SUCCESS
+
+Code
+200
+4001
+
+4003
+4004
+4005
+4020
+
+Status Meaning
+SUCCESS
+Unauthorized
+SID/Stakeholder is not
+permitted
+IP Blacklisted
+End point Not Found
+Invalid request format
+Invalid CSMS ID
+
+4022
+
+Required Parameter Missing
+
+4023
+4025
+4026
+4027
+
+Duplicate CMS ID
+Invalid MSISDN
+Blocked MSISDN
+Message length exceeded
+
+4028
+
+Invalid message data
+
+4029
+4030
+4031
+5000
+
+Too many requests
+Limit Exceed
+TPS Exceeded
+Unknown Error
+
+4002
+
+FAILED
+
+Description
+Successful
+Invalid API token
+Stakeholder/SID is not permitted to
+send SMS.
+Client IP is backlisted in SSL API gateway.
+Invalid API URL.
+Invalid content type or is not valid json.
+CSMS ID is not valid.
+When any mandatory field has not been
+filled in the request parameters.
+CSMS ID is duplicate in the same day.
+MSISDN is invalid.
+MSISDN is blocked.
+Maximum message length exceeded.
+No SMS is success on bulk or dynamic
+request.
+API Request limit exceeded
+Max msisdn exceed for one request
+The limit of TPS exceeds
+Error for undefined reason
+
+3.2 SMS Status Code
+The SMS status codes for push SMS are given below:
+Status
+SUCCESS
+INVALID
+
+DUPLICATE
+
+Confidential
+
+Message
+SUCCESS
+Invalid MSISDN
+Message length exceeded
+Invalid CSMS ID
+Duplicate CMS ID
+Duplicate MSISDN
+
+Description
+Successful
+Provided MSISDN is Invalid
+Maximum message length exceeded
+CSMS ID is Invalid
+CSMS ID is duplicate on the same day.
+MSISDN is duplicate on the same
+request.
+
+Page | 5
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+4 API Specification
+There are three types of API for Push SMS:
+1. Single SMS
+
+2. Bulk SMS
+
+3. Dynamic SMS
+
+4.1 Single SMS
+This API is used for sending a single SMS. If the client wants to send an SMS to one MSISDN only,
+then this API will be used.
+•
+•
+•
+•
+
+URL: <domain>/api/v3/send-sms
+Request Method: GET or POST
+Request Content Type: JSON
+Response Type: JSON
+
+4.1.1 Request Parameters
+Request parameters for sending single SMS are given below:
+Name
+
+Mandatory
+
+Type
+
+Length
+
+api_token
+
+Yes
+
+Alphanumeric
+
+50
+
+sid
+
+Yes
+
+Alphanumeric
+
+20
+
+msisdn
+
+Yes
+
+Numeric
+
+16
+
+sms
+
+Yes
+
+Alphanumeric
+
+1000
+
+csms_id
+
+Yes
+
+Alphanumeric
+
+20
+
+Description
+It will be provided by SSL for
+authentication.
+This is a unique id for the specific
+brand/masking name for the client,
+provide by SSL
+This is the mobile number of SMS
+recipient.
+This is the SMS body to
+be received by the recipient.
+SMS length will be different for
+Unicode SMS.
+For each SMS there will be a unique
+reference ID from Client. The
+csms_id will be unique for the same
+day only
+
+4.1.2 Sample Request
+{
+"api_token": "1279-98d2bb25-3f7e-49bf-a1e2-5d1a6c6c588f",
+"sid": "ENGINEERING",
+"msisdn": "88019XXXXXXXX",
+"sms": "Message Body",
+"csms_id": "4473433434pZ684333392"
+}
+Confidential
+
+Page | 6
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+4.1.3 Sample Response
+{
+"status": "SUCCESS",
+"status_code": 200,
+"error_message": "",
+"smsinfo": [
+{
+"sms_status": "SUCCESS",
+"status_message": "Success",
+"msisdn": "88019XXXXXXXX",
+"sms_type": "EN",
+"sms_body": "Message Body",
+"csms_id": "4473433434pZ684333392",
+"reference_id": "5da2f0b5ba3a2248110"
+}
+]
+}
+
+4.1.4 Response Parameters
+Response parameters for single SMS are given below:
+Parameter
+status
+status_code
+error_message
+smsinfo
+sms_status
+status_message
+msisdn
+sms_type
+sms_body
+csms_id
+reference_id
+Confidential
+
+Description
+It informs the status whether it is SUCCESS or FAIL
+Check API status code list in 3.1
+If status failed it will return an error message otherwise return empty.
+List of SMS details object. One object for each SMS.
+It’s indicated SMS is a success or invalid or duplicate. Check SMS status
+in 3.2
+Check SMS status in 3.2
+Client provided msisdn will be here.
+If provided SMS type is Unicode then SMS type will return as BN,
+otherwise, it will return as EN.
+Client provided SMS text will be here.
+Client provided reference ID will be here
+For each SMS, SSL will provide a reference ID
+Page | 7
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+4.2 Bulk SMS
+This API is used for sending bulk SMS. If the client wants to send SMS with a common SMS body to
+multiple MSISDN, then this API will be used.
+•
+•
+•
+•
+•
+
+URL: <domain>/api/v3/send-sms/bulk
+Request Method: POST
+Request Content Type: JSON
+Response Type: JSON
+MSISDN Limit per Request: 100
+
+4.2.1 Request Parameters
+Request parameters for sending bulk SMS are given below:
+Name
+
+Mandatory
+
+Type
+
+Length
+
+api_token
+
+Yes
+
+Alphanumeric
+
+50
+
+sid
+
+Yes
+
+Alphanumeric
+
+20
+
+msisdn
+
+Yes
+
+Numeric
+
+16
+
+sms
+
+Yes
+
+Alphanumeric
+
+1000
+
+batch_csms_id
+
+Yes
+
+Alphanumeric
+
+20
+
+Description
+It will be provided by SSL for
+authentication.
+This is a unique id for the specific
+brand/masking name for the
+client, provide by SSL
+This is the mobile number of the
+recipients. It must be an array.
+This is the SMS body to
+be received by the recipient.
+SMS length will be different for
+Unicode SMS.
+For each bulk request there will
+be a unique reference ID for the
+Client
+
+4.2.2 Sample Request
+{
+"api_token": "1279-98d2bb25-3f7e-49bf-a1e2-5d1a6c6c588f",
+"sid": "ENGINEERING",
+"msisdn": [
+"019XXXXXXXX",
+"017XXXXXXXX",
+"018XXXXXXXX"
+],
+"sms": "Message Body",
+"batch_csms_id": "4437343343P3Z684333392"
+}
+Confidential
+
+Page | 8
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+4.2.3 Sample Response
+{
+"status": "SUCCESS",
+"status_code": 200,
+"error_message": "",
+"smsinfo": [
+{
+"sms_status": "SUCCESS",
+"status_message": "Success",
+"msisdn": "88019XXXXXXXX",
+"sms_type": "EN",
+"sms_body": "Message Body",
+"csms_id": "4437343343P3Z684333392",
+"reference_id": "5da2f0b5ba3a2248110"
+},
+{
+"sms_status": "SUCCESS",
+"status_message": "Success",
+"msisdn": "88017XXXXXXXX",
+"sms_type": "EN",
+"sms_body": "Message Body",
+"csms_id": "4437343343P3Z684333392",
+"reference_id": "5da2f0b5ba3a2248111"
+},
+{
+"sms_status": "SUCCESS",
+"status_message": "Success",
+"msisdn": "88018XXXXXXXX",
+"sms_type": "EN",
+"sms_body": "Message Body",
+"csms_id": "4437343343P3Z684333392",
+"reference_id": "5da2f0b5ba3a2248112"
+}
+]
+}
+
+Confidential
+
+Page | 9
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+4.2.4 Response Parameters
+Response parameters for bulk SMS are given below:
+Parameter
+status
+status_code
+error_message
+smsinfo
+sms_status
+status_message
+msisdn
+sms_type
+sms_body
+csms_id
+reference_id
+
+Description
+It will inform the status whether it is SUCCESS or FAIL
+Check the API status code list in 3.1
+If the status is failed then it will return an error message, otherwise, it
+will return empty.
+List of SMS details object. One object for each SMS.
+It’s indicated SMS is a success or invalid or duplicate. Check SMS status in
+3.2
+Check SMS status in 3.2.
+Client provided msisdn will be here.
+If provided SMS type is Unicode then SMS type will return as BN,
+otherwise, it will return as EN.
+Client provided SMS text will be here.
+Client provided reference ID will be here
+For each SMS, SSL will provide a reference ID
+
+4.3 Dynamic SMS
+This API is used for sending dynamic SMS. If the client wants to send SMS to multiple MSISDN each
+with a unique SMS body, then this API will be used.
+•
+•
+•
+•
+•
+
+URL: <domain>/api/v3/send-sms/dynamic
+Request Method: POST
+Request Content Type: JSON
+Response Type: JSON
+SMS Limit per Request: 100
+
+4.3.1 Request Parameters
+Request parameters for sending Dynamic SMS are given below:
+Name
+
+Mandatory
+
+Type
+
+Length
+
+api_token
+
+Yes
+
+Alphanumeric
+
+50
+
+sid
+
+Yes
+
+Alphanumeric
+
+20
+
+msisdn
+
+Yes
+
+Numeric
+
+16
+
+text
+
+Yes
+
+Alphanumeric
+
+1000
+
+csms_id
+
+Yes
+
+Alphanumeric
+
+20
+
+Confidential
+
+Description
+It will be provided by SSL for
+authentication.
+This is a unique id for the specific
+brand/masking name for the client,
+provide by SSL.
+This is the mobile number of the
+SMS recipient.
+This is the SMS message body to
+be received by the recipient. SMS
+length will be different for Unicode
+SMS.
+For each SMS request there will be
+a unique reference ID for Client
+Page | 10
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+4.3.2 Sample Request
+{
+"api_token": "1279-98d2bb25-3f7e-49bf-a1e2-5d1a6c6c588f",
+"sid": "ENGINEERING",
+"sms": [
+{
+"text": "Message Body 1",
+"msisdn": "019XXXXXXXX",
+"csms_id":"234444343222"
+},
+{
+"text": "Message Body 2",
+"msisdn": "017XXXXXXXX",
+"csms_id":"222334242244"
+},
+{
+"text": "Message Body 3",
+"msisdn": "018XXXXXXXX",
+"csms_id":"232352235235"
+}
+]
+}
+
+Confidential
+
+Page | 11
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+4.3.3 Sample Response
+{
+"status": "SUCCESS",
+"status_code": 200,
+"error_message": "",
+"smsinfo": [
+{
+"sms_status": "SUCCESS",
+"status_message": "Success",
+"msisdn": "88019XXXXXXXX",
+"sms_type": "EN",
+"sms_body": "Message Body",
+"csms_id": "234444343222",
+"reference_id": "5da2f0b5ba3a2248110"
+},
+{
+"sms_status": "SUCCESS",
+"status_message": "Success",
+"msisdn": "88017XXXXXXXX",
+"sms_type": "EN",
+"sms_body": "Message Body",
+"csms_id": "222334242244",
+"reference_id": "5da2f0b5ba3a2248111"
+},
+{
+"sms_status": "SUCCESS",
+"status_message": "Success",
+"msisdn": "88018XXXXXXXX",
+"sms_type": "EN",
+"sms_body": "Message Body",
+"csms_id": "232352235235",
+"reference_id": "5da2f0b5ba3a2248112"
+}
+]
+}
+
+Confidential
+
+Page | 12
+
+TECHNICAL SPECIFICATION OF PUSH SMS CONNECTIVITY API
+| Version:3.0.0
+
+4.3.4 Response Parameters
+Response parameters for dynamic SMS are listed below:
+Parameter
+status
+status_code
+error_message
+smsinfo
+sms_status
+status_message
+msisdn
+sms_type
+sms_body
+csms_id
+reference_id
+
+Description
+It will inform the status whether it is SUCCESS or FAIL
+Check API status code in 3.1
+If the status is failed then it will return an error message, otherwise, it
+will return empty.
+List of SMS details object. One object for each SMS.
+It’s indicated SMS is a success or invalid or duplicate. Check API status
+code list in 3.2
+Check SMS status in 3.2.
+Client’s provided MSISDN will be here.
+If provided SMS type is Unicode then SMS type will return as BN,
+otherwise, it will return as EN.
+Client’s provided SMS text will be here.
+Client’s provided reference ID will be here
+For each SMS, SSL will provide a reference ID
+
+--- End of document ---
+
+Confidential
+
+Page | 13
+
+
