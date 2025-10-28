@@ -273,8 +273,18 @@ async function testSSLWirelessIP() {
       headers: Object.fromEntries(response.headers.entries()),
       isIPBlacklisted: isIPBlacklisted,
       note: isIPBlacklisted 
-        ? 'SSL Wireless sees Cloudflare IPs (Status 4003 = IP Blacklisted)'
-        : 'SSL Wireless sees Render IPs (Request successful)'
+        ? 'SSL Wireless sees Cloudflare IPs (Status 4003 = IP Blacklisted) - May need additional IP ranges whitelisted'
+        : 'SSL Wireless sees Render IPs (Request successful)',
+      whitelistedRanges: [
+        '141.101.64.0/18',
+        '103.31.4.0/22', 
+        '103.22.200.0/22',
+        '103.21.244.0/22',
+        '173.245.48.0/20'
+      ],
+      suggestion: isIPBlacklisted 
+        ? 'Request SSL Wireless to whitelist additional Cloudflare IP ranges or check if whitelist has propagated'
+        : 'SMS service should work now'
     };
     
   } catch (error: any) {
