@@ -156,6 +156,72 @@ router.get('/test-ssl-wireless-ip', async (req, res) => {
   }
 });
 
+// API endpoint to check what IP external services see from our outbound requests
+router.get('/check-outbound-ip', async (req, res) => {
+  try {
+    const result = await checkOutboundIPFromExternalServices();
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+async function checkOutboundIPFromExternalServices() {
+  const services = [
+    { name: 'ipify.org', url: 'https://api.ipify.org?format=json', parser: 'json' as const, field: 'ip' },
+    { name: 'httpbin.org', url: 'https://httpbin.org/ip', parser: 'json' as const, field: 'origin' },
+    { name: 'ifconfig.me', url: 'https://ifconfig.me/ip', parser: 'text' as const },
+    { name: 'ipinfo.io', url: 'https://ipinfo.io/ip', parser: 'text' as const },
+    { name: 'icanhazip.com', url: 'https://icanhazip.com', parser: 'text' as const }
+  ];
+  
+  const results = [];
+  const errors = [];
+  
+  for (const service of services) {
+    try {
+      const ip = await getIPFromService(service.url, service.parser, service.field);
+      const isCloudflare = isCloudflareIP(ip);
+      results.push({ 
+        service: service.name, 
+        ip, 
+        isCloudflare,
+        note: isCloudflare ? 'This IP is from Cloudflare' : 'This IP is from Render'
+      });
+    } catch (error: any) {
+      errors.push({ service: service.name, error: error.message });
+    }
+  }
+  
+  // Find unique IPs
+  const uniqueIPs = [...new Set(results.map(r => r.ip))];
+  const cloudflareIPs = uniqueIPs.filter(ip => isCloudflareIP(ip));
+  const renderIPs = uniqueIPs.filter(ip => !isCloudflareIP(ip));
+  
+  return {
+    success: true,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'production',
+    summary: {
+      totalIPs: uniqueIPs.length,
+      cloudflareIPs: cloudflareIPs.length,
+      renderIPs: renderIPs.length,
+      conclusion: cloudflareIPs.length > 0 
+        ? 'Outbound requests go through Cloudflare IPs'
+        : 'Outbound requests go through Render IPs'
+    },
+    allIPs: uniqueIPs,
+    cloudflareIPs,
+    renderIPs,
+    results,
+    errors: errors.length > 0 ? errors : undefined
+  };
+}
+
 async function testSSLWirelessIP() {
   const apiToken = process.env.SSL_WIRELESS_API_TOKEN;
   const sid = process.env.SSL_WIRELESS_SID;
@@ -195,6 +261,9 @@ async function testSSLWirelessIP() {
       responseData = { raw_response: responseText };
     }
     
+    // Check if the response indicates IP blacklisting
+    const isIPBlacklisted = responseData.status_code === 4003;
+    
     return {
       success: true,
       timestamp: new Date().toISOString(),
@@ -202,7 +271,10 @@ async function testSSLWirelessIP() {
       statusCode: response.status,
       statusText: response.statusText,
       headers: Object.fromEntries(response.headers.entries()),
-      note: 'This shows what IP SSL Wireless sees when we make requests'
+      isIPBlacklisted: isIPBlacklisted,
+      note: isIPBlacklisted 
+        ? 'SSL Wireless sees Cloudflare IPs (Status 4003 = IP Blacklisted)'
+        : 'SSL Wireless sees Render IPs (Request successful)'
     };
     
   } catch (error: any) {
