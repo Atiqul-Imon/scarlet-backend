@@ -111,7 +111,14 @@ export const env = {
   steadfastApiKey: process.env.STEADFAST_API_KEY,
   steadfastSecretKey: process.env.STEADFAST_SECRET_KEY,
   steadfastStoreId: process.env.STEADFAST_STORE_ID,
-  steadfastSandbox: process.env.STEADFAST_SANDBOX || 'true'
+  steadfastSandbox: process.env.STEADFAST_SANDBOX || 'true',
+  
+  // SSLWireless SMS Configuration
+  sslWirelessApiToken: process.env.SSL_WIRELESS_API_TOKEN,
+  sslWirelessSid: process.env.SSL_WIRELESS_SID,
+  sslWirelessMasking: process.env.SSL_WIRELESS_MASKING || 'SCARLET',
+  sslWirelessApiUser: process.env.SSL_WIRELESS_API_USER,
+  sslWirelessApiPassword: process.env.SSL_WIRELESS_API_PASSWORD
 };
 
 export { isProduction };

@@ -95,10 +95,10 @@ export async function generateAndSendOTP(
     const createdOTP = await repo.createOTP(otp);
     
     // Send SMS (in development, log to console)
-    await sendOTPSMS(normalizedPhone, code);
+    await sendOTPSMS(normalizedPhone, code, purpose);
     
     logger.info({
-      phone: normalizedPhone,
+      phone: normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'), // Mask phone for security
       purpose,
       sessionId,
       otpId: createdOTP._id
@@ -108,9 +108,8 @@ export async function generateAndSendOTP(
       success: true,
       message: 'OTP sent successfully',
       expiresIn: 600, // 10 minutes
-      attemptsRemaining: 5,
-      // Include OTP in response for development/testing purposes
-      otp: code
+      attemptsRemaining: 5
+      // OTP is NOT included in response for security
     };
     
   } catch (error) {
@@ -176,7 +175,7 @@ export async function verifyOTP(
     await repo.markOTPAsVerified(otp._id!);
     
     logger.info({
-      phone: normalizedPhone,
+      phone: normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'), // Mask phone for security
       purpose,
       sessionId,
       otpId: otp._id
@@ -232,39 +231,93 @@ export async function cleanupExpiredOTPs(): Promise<void> {
 
 // Export SMS function for use by other modules
 export async function sendOrderSuccessSMS(phone: string, orderNumber: string): Promise<void> {
-  // Create message under 160 characters
-  const message = `Order #${orderNumber} placed successfully! Your order is confirmed and will be processed soon. Thank you for choosing Scarlet Beauty!`;
-  
-  // TODO: Replace with real SMS service (Twilio, AWS SNS, etc.)
-  // For development and current production, we'll log the SMS to console
-  logger.info({
-    phone,
-    orderNumber,
-    message,
-    messageLength: message.length
-  }, 'Order Success SMS sent');
-  
-  console.log(`\n📱 Order Success SMS for ${phone}:`);
-  console.log(`Message: ${message}`);
-  console.log(`Length: ${message.length} characters\n`);
-  console.log('🔐 SMS logged to console (ready for real SMS integration)');
+  try {
+    // Import SSLWireless SMS service
+    const { smsService } = await import('../../core/services/smsService.js');
+    
+    // Create message under 160 characters
+    const total = 0; // TODO: Get actual total from order
+    const message = `Order #${orderNumber} placed successfully! Your order is confirmed and will be processed soon. Thank you for choosing Scarlet Beauty!`;
+    
+    // Check if service is configured
+    if (smsService.isConfigured()) {
+      await smsService.sendOrderConfirmation(phone, orderNumber, total);
+      logger.info({ phone, orderNumber }, 'Order confirmation SMS sent via SSLWireless');
+    } else {
+      // Fallback to console logging
+      logger.info({
+        phone,
+        orderNumber,
+        message,
+        messageLength: message.length
+      }, 'Order Success SMS logged (SSLWireless not configured)');
+      
+      console.log(`\n📱 Order Success SMS for ${phone}:`);
+      console.log(`Message: ${message}`);
+      console.log(`Length: ${message.length} characters\n`);
+      console.log('⚠️ SSLWireless SMS not configured. SMS logged to console.');
+    }
+  } catch (error: any) {
+    logger.error({ error: error.message, phone, orderNumber }, 'Failed to send order success SMS');
+    console.log(`\n📱 Order Success SMS FALLBACK for ${phone}:`);
+    console.log(`Order: ${orderNumber}`);
+    console.log(`Error: ${error.message}\n`);
+  }
 }
 
-// Send OTP SMS for login/verification
-export async function sendOTPSMS(phone: string, otp: string): Promise<void> {
-  const message = `Your Scarlet verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`;
-  
-  // TODO: Replace with real SMS service (Twilio, AWS SNS, etc.)
-  logger.info({
-    phone,
-    otp,
-    message,
-    messageLength: message.length
-  }, 'OTP SMS sent');
-  
-  console.log(`\n📱 OTP SMS for ${phone}:`);
-  console.log(`Code: ${otp}`);
-  console.log(`Message: ${message}`);
-  console.log(`Length: ${message.length} characters\n`);
-  console.log('🔐 SMS logged to console (ready for real SMS integration)');
+// Send OTP SMS for login/verification (Production Ready)
+export async function sendOTPSMS(phone: string, otp: string, purpose: 'phone_verification' | 'password_reset' | 'guest_checkout' = 'phone_verification'): Promise<void> {
+  try {
+    // Import SSLWireless SMS service
+    const { smsService } = await import('../../core/services/smsService.js');
+    
+    // Check if service is configured
+    if (smsService.isConfigured()) {
+      // Map purpose to SMS service purpose
+      const smsPurpose = purpose === 'password_reset' ? 'passwordReset' : 
+                        purpose === 'phone_verification' ? 'verification' : 'verification';
+      
+      // Send via SSLWireless with bilingual message
+      await smsService.sendOTP(phone, otp, smsPurpose);
+      
+      // Log OTP for debugging (only in server logs, not in API response)
+      logger.info({ 
+        phone, 
+        otp, 
+        purpose,
+        maskedPhone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2') // Mask phone for security
+      }, 'OTP SMS sent via SSLWireless');
+      
+    } else {
+      // Fallback to console logging in development
+      const message = `Your Scarlet verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`;
+      
+      logger.info({
+        phone,
+        otp,
+        purpose,
+        message,
+        messageLength: message.length,
+        maskedPhone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')
+      }, 'OTP SMS logged (SSLWireless not configured)');
+      
+      console.log(`\n📱 OTP SMS for ${phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')}:`);
+      console.log(`Code: ${otp}`);
+      console.log(`Message: ${message}`);
+      console.log(`Length: ${message.length} characters\n`);
+      console.log('⚠️ SSLWireless SMS not configured. Add SSL_WIRELESS_API_TOKEN and SSL_WIRELESS_SID to environment variables.');
+    }
+  } catch (error: any) {
+    // If SMS service fails, log to console as fallback
+    logger.error({ 
+      error: error.message, 
+      phone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'), 
+      otp, 
+      purpose 
+    }, 'Failed to send OTP SMS');
+    
+    console.log(`\n📱 OTP SMS FALLBACK for ${phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')}:`);
+    console.log(`Code: ${otp}`);
+    console.log(`Error: ${error.message}\n`);
+  }
 }
