@@ -178,7 +178,7 @@ async function testSSLWirelessIP() {
   };
   
   try {
-    const response = await fetch('https://api.sslwireless.com/v3/send-sms', {
+    const response = await fetch('https://smsplus.sslwireless.com/api/v3/send-sms', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -80,13 +80,21 @@ class SSLWirelessSMSService {
         csms_id: options.csmsId || this.generateCSMSId()  // Unique client reference ID (max 20 chars)
       };
 
-      // Log SMS request
+      // Log SMS request with full details
       logger.info({
         phone: normalizedPhone,
         messageLength: message.length,
         masking: options.masking,
         hasApiToken: !!this.apiToken,
-        hasSid: !!this.sid
+        hasSid: !!this.sid,
+        apiUrl: this.apiUrl,
+        payload: {
+          api_token: this.apiToken ? `${this.apiToken.substring(0, 8)}...` : 'MISSING',
+          sid: options.masking || this.sid,
+          msisdn: normalizedPhone,
+          sms: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
+          csms_id: options.csmsId || this.generateCSMSId()
+        }
       }, 'Sending SMS via SSLWireless');
 
       // Make API request
@@ -101,6 +109,17 @@ class SSLWirelessSMSService {
       };
 
       const response = await axios<SSLWirelessResponse>(config);
+
+      // Log response details
+      logger.info({
+        phone: normalizedPhone,
+        statusCode: response.status,
+        responseData: response.data,
+        headers: {
+          'content-type': response.headers['content-type'],
+          'content-length': response.headers['content-length']
+        }
+      }, 'SSLWireless API Response');
 
       // Check response
       if (response.data.status_code === 200) {
