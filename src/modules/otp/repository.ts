@@ -105,13 +105,13 @@ export async function findRecentOTPByPhone(
   const db = await getDb();
   const col = db.collection('otps');
   
-  // Find the most recent OTP for this phone and purpose within the last 5 minutes
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  // Find the most recent OTP for this phone and purpose within the last 10 seconds
+  const tenSecondsAgo = new Date(Date.now() - 10 * 1000).toISOString();
   
   const otp = await col.findOne({
     phone,
     purpose,
-    createdAt: { $gt: fiveMinutesAgo }
+    createdAt: { $gt: tenSecondsAgo }
   }, {
     sort: { createdAt: -1 } // Most recent first
   }) as any as OTP | null;
