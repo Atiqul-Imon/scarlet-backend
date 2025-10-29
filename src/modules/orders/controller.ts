@@ -47,7 +47,7 @@ const validateOrderData = (data: any): { valid: boolean; errors: Record<string, 
 
   if (!data.paymentMethod) {
     errors.paymentMethod = 'Payment method is required';
-  } else if (!['bkash', 'nagad', 'rocket', 'card', 'cod'].includes(data.paymentMethod)) {
+  } else if (!['bkash', 'nagad', 'rocket', 'card', 'cod', 'sslcommerz'].includes(data.paymentMethod)) {
     errors.paymentMethod = 'Invalid payment method';
   }
 

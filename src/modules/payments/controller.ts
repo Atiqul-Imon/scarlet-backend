@@ -47,7 +47,7 @@ const validateCreatePaymentRequest = (data: any): { valid: boolean; errors: Reco
     errors.orderId = 'Order ID is required';
   }
 
-  if (!data.paymentMethod || !['bkash', 'nagad', 'rocket', 'card', 'cod'].includes(data.paymentMethod)) {
+  if (!data.paymentMethod || !['bkash', 'nagad', 'rocket', 'card', 'cod', 'sslcommerz'].includes(data.paymentMethod)) {
     errors.paymentMethod = 'Valid payment method is required';
   }
 

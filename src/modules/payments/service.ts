@@ -439,7 +439,7 @@ export class PaymentService {
 
   // Private helper methods
   private isValidPaymentMethod(method: string): method is PaymentMethod {
-    return ['bkash', 'nagad', 'rocket', 'card', 'cod'].includes(method);
+    return ['bkash', 'nagad', 'rocket', 'card', 'cod', 'sslcommerz'].includes(method);
   }
 
   private validateAmount(amount: number): boolean {

@@ -190,7 +190,7 @@ export const commonSchemas = {
         required: true, 
         type: 'string',
         custom: (value: string) => {
-          const validMethods = ['bkash', 'nagad', 'rocket', 'card', 'cod'];
+          const validMethods = ['bkash', 'nagad', 'rocket', 'card', 'cod', 'sslcommerz'];
           return validMethods.includes(value) ? null : 'Invalid payment method';
         }
       },

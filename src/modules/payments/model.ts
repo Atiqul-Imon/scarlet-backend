@@ -1,4 +1,4 @@
-export type PaymentMethod = 'bkash' | 'nagad' | 'rocket' | 'card' | 'cod';
+export type PaymentMethod = 'bkash' | 'nagad' | 'rocket' | 'card' | 'cod' | 'sslcommerz';
 export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'refunded' | 'partially_refunded';
 export type PaymentGateway = 'bkash' | 'nagad' | 'rocket' | 'stripe' | 'paypal' | 'manual';
 

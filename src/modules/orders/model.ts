@@ -1,6 +1,6 @@
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'delivered' | 'cancelled' | 'refunded';
 export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
-export type PaymentMethod = 'bkash' | 'nagad' | 'rocket' | 'card' | 'cod';
+export type PaymentMethod = 'bkash' | 'nagad' | 'rocket' | 'card' | 'cod' | 'sslcommerz';
 
 export interface OrderItem {
   productId: string;
