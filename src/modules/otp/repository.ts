@@ -49,7 +49,10 @@ export async function findValidOTP(
     sessionId,
     purpose,
     expiresAt: { $gt: new Date().toISOString() },
-    attempts: { $lt: 5 } // Max 5 attempts
+    attempts: { $lt: 5 }, // Max 5 attempts
+    verifiedAt: { $exists: false } // Exclude already verified OTPs
+  }, {
+    sort: { createdAt: -1 } // Get the most recent unverified OTP
   }) as any as OTP | null;
   
   return otp;
@@ -105,13 +108,15 @@ export async function findRecentOTPByPhone(
   const db = await getDb();
   const col = db.collection('otps');
   
-  // Find the most recent OTP for this phone and purpose within the last 10 seconds
+  // Find the most recent UNVERIFIED OTP for this phone and purpose within the last 10 seconds
+  // Only rate-limit if there's an unverified OTP (already verified ones shouldn't block new requests)
   const tenSecondsAgo = new Date(Date.now() - 10 * 1000).toISOString();
   
   const otp = await col.findOne({
     phone,
     purpose,
-    createdAt: { $gt: tenSecondsAgo }
+    createdAt: { $gt: tenSecondsAgo },
+    verifiedAt: { $exists: false } // Only check unverified OTPs for rate limiting
   }, {
     sort: { createdAt: -1 } // Most recent first
   }) as any as OTP | null;
