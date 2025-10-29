@@ -211,7 +211,7 @@ class SSLWirelessSMSService {
     }, 'Sending bilingual OTP SMS');
     
     return this.sendSMS(phone, message, {
-      masking: 'Scarlet', // Your masking name from SSLWireless
+      masking: this.sid, // Your masking name from SSLWireless
       csmsId: `OTP_${purpose}_${Date.now()}`
     });
   }
@@ -243,7 +243,7 @@ class SSLWirelessSMSService {
     }, 'Sending bilingual order confirmation SMS');
     
     return this.sendSMS(phone, message, {
-      masking: 'Scarlet',
+      masking: this.sid,
       csmsId: `ORDER_${orderNumber}_${Date.now()}`
     });
   }
@@ -272,7 +272,7 @@ class SSLWirelessSMSService {
     }, 'Sending bilingual order status SMS');
     
     return this.sendSMS(phone, message, {
-      masking: 'Scarlet',
+      masking: this.sid,
       csmsId: `STATUS_${orderNumber}_${Date.now()}`
     });
   }
@@ -292,7 +292,7 @@ class SSLWirelessSMSService {
   ): Promise<string> {
     return this.sendSMS(phone, customMessage, {
       ...options,
-      masking: options.masking || 'Scarlet'
+      masking: options.masking || this.sid
     });
   }
 
@@ -317,7 +317,7 @@ class SSLWirelessSMSService {
     }, 'Sending bilingual welcome SMS');
     
     return this.sendSMS(phone, message, {
-      masking: 'Scarlet',
+      masking: this.sid,
       csmsId: `WELCOME_${userType}_${Date.now()}`
     });
   }
@@ -346,7 +346,7 @@ class SSLWirelessSMSService {
     }, 'Sending bilingual promotional SMS');
     
     return this.sendSMS(phone, message, {
-      masking: 'Scarlet',
+      masking: this.sid,
       csmsId: `PROMO_${promoType}_${Date.now()}`
     });
   }
@@ -375,7 +375,7 @@ class SSLWirelessSMSService {
     }, 'Sending bilingual reminder SMS');
     
     return this.sendSMS(phone, message, {
-      masking: 'Scarlet',
+      masking: this.sid,
       csmsId: `REMINDER_${reminderType}_${Date.now()}`
     });
   }
