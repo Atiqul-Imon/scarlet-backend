@@ -124,7 +124,8 @@ export class SSLCommerzGateway {
 
         // Additional parameters
         emi_option: 0,
-        multi_card_name: 'visa,master,amex',
+        // multi_card_name parameter removed - let SSLCommerz show ALL available payment methods
+        // This allows users to see and select from Cards, bKash, Nagad, Rocket, etc.
         value_a: paymentData.orderId, // Custom field for order tracking
       };
 
@@ -157,10 +158,22 @@ export class SSLCommerzGateway {
       }, 'SSLCommerz response received');
 
       if (response.data.status === 'SUCCESS') {
+        // Use GatewayPageURL which shows ALL payment methods (Cards, bKash, Nagad, Rocket, etc.)
+        // GatewayPageURL is the main page where users can select their preferred payment method
+        const gatewayUrl = response.data.GatewayPageURL || response.data.redirectGatewayURL || response.data.directPaymentURL;
+        
+        logger.info({ 
+          orderId: paymentData.orderId,
+          gatewayUrl,
+          hasDirectCardURL: !!response.data.directPaymentURLCard,
+          hasDirectBankURL: !!response.data.directPaymentURLBank,
+          redirectGatewayURL: response.data.redirectGatewayURL
+        }, 'SSLCommerz gateway URLs available');
+        
         return {
           success: true,
           sessionKey: response.data.sessionkey,
-          gatewayUrl: response.data.GatewayPageURL || response.data.redirectGatewayURL,
+          gatewayUrl: gatewayUrl || '',
         };
       } else {
         logger.error({ 
