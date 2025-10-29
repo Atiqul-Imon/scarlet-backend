@@ -101,7 +101,7 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
 
   // Calculate totals
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shippingCost = 100; // Fixed shipping cost
+  const shippingCost = 0; // Free shipping
   const total = subtotal + shippingCost;
 
   // Create shipping address
@@ -242,7 +242,7 @@ export async function createFromGuestCart(cartItems: any[], orderData: CreateOrd
 
   // Calculate totals
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shippingCost = 100; // Fixed shipping cost
+  const shippingCost = 0; // Free shipping
   const total = subtotal + shippingCost;
 
   // Create shipping address
