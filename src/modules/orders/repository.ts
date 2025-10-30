@@ -12,8 +12,16 @@ export async function insertOrder(order: Order): Promise<Order> {
 
 export async function listOrdersByUser(userId: string): Promise<Order[]> {
   const db = await getDb();
+  // Hide SSLCommerz orders until payment is completed
+  const query: any = {
+    userId,
+    $or: [
+      { 'paymentInfo.method': { $ne: 'sslcommerz' } },
+      { 'paymentInfo.status': 'completed' }
+    ]
+  };
   return db.collection<Order>('orders')
-    .find({ userId })
+    .find(query)
     .sort({ createdAt: -1 })
     .toArray();
 }

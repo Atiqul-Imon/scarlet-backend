@@ -287,6 +287,12 @@ export async function getOrders(
   
   // Build query
   const query: any = {};
+  // Business rule: Only show SSLCommerz orders after successful payment
+  // Show all non-SSLCommerz orders (e.g., COD) regardless of payment status
+  query.$or = [
+    { 'paymentInfo.method': { $ne: 'sslcommerz' } },
+    { 'paymentInfo.status': 'completed' }
+  ];
   if (filters.status) query.status = filters.status;
   if (filters.dateFrom || filters.dateTo) {
     query.createdAt = {};
