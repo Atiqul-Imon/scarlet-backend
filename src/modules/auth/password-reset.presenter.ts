@@ -167,27 +167,39 @@ export async function sendPasswordResetOTP(
     // Database stores phones as +8801XXXXXXXXX (from normalizeIdentifier during registration)
     // Guest checkout works because it uses phone directly from user input (01XXXXXXXXX)
     // Password reset needs to convert database phone (+8801XXXXXXXXX) to 01XXXXXXXXX format
+    // Use the same robust extraction logic as guest checkout
     let phoneForOTP = user.phone;
     
+    // Extract digits only first
+    const digitsOnly = phoneForOTP.replace(/\D/g, ''); // Remove all non-digits
+    
     // Convert to 01XXXXXXXXX format (same as guest checkout)
-    // This ensures validation passes and normalization works correctly
-    if (phoneForOTP.startsWith('+8801')) {
-      // +8801714918360 -> 01XXXXXXXXX
-      // Skip '+8801' (5 chars), keep the rest
-      phoneForOTP = '01' + phoneForOTP.substring(5); // +8801 -> skip, then 714918360 -> 01714918360
-    } else if (phoneForOTP.startsWith('8801')) {
-      // 8801714918360 -> 01XXXXXXXXX
-      phoneForOTP = '01' + phoneForOTP.substring(4); // 8801 -> skip, then 714918360 -> 01714918360
-    } else if (phoneForOTP.startsWith('01')) {
+    // Handle all possible formats: +8801XXXXXXXXX, 8801XXXXXXXXX, 01XXXXXXXXX
+    if (digitsOnly.startsWith('8801') && digitsOnly.length === 13) {
+      // 8801714918360 -> 01714918360 (skip first 2 digits: 88, result already starts with 0)
+      phoneForOTP = digitsOnly.substring(2);
+    } else if (digitsOnly.startsWith('01') && digitsOnly.length === 11) {
       // Already in correct format
-      phoneForOTP = phoneForOTP;
-    } else {
-      // Unknown format, try to extract last 11 digits (01XXXXXXXXX)
-      const digits = phoneForOTP.replace(/\D/g, ''); // Remove all non-digits
-      if (digits.length >= 11) {
-        phoneForOTP = '01' + digits.slice(-9); // Last 9 digits after 01
+      phoneForOTP = digitsOnly;
+    } else if (digitsOnly.length === 13 && digitsOnly.startsWith('880')) {
+      // +8801714918360 -> 01714918360 (skip first 2 digits: 88, result already starts with 0)
+      phoneForOTP = digitsOnly.substring(2);
+    } else if (digitsOnly.length >= 11) {
+      // Try to extract: get last 11 digits, if they start with 01, use them
+      const last11 = digitsOnly.slice(-11);
+      if (last11.startsWith('01')) {
+        phoneForOTP = last11;
+      } else {
+        // Fallback: assume last 11 digits are the phone, prepend 01 if needed
+        phoneForOTP = last11.startsWith('0') ? last11 : '0' + last11.slice(-10);
       }
-      // If still can't format, pass as-is and let validation handle it
+    } else {
+      // If we can't determine format, use original and let validation handle it
+      logger.warn({ 
+        originalPhone: user.phone,
+        digitsOnly,
+        phoneLength: digitsOnly.length
+      }, 'Could not normalize phone number format, using original');
     }
     
     logger.info({ 
