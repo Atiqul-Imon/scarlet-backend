@@ -269,9 +269,10 @@ export async function handleIPN(ipnData: any): Promise<{ success: boolean; error
         throw error;
       }
       
-    } else if (status === 'CANCELLED' || status === 'UNATTEMPTED') {
-      // Payment cancelled - update order and restore stock
-      console.log(`⚠️ Payment cancelled for order: ${transactionId} (Order #${order.orderNumber})`);
+    } else if (status === 'CANCELLED' || status === 'UNATTEMPTED' || status === 'EXPIRED') {
+      // Payment cancelled/expired - update order and restore stock
+      const statusLabel = status === 'EXPIRED' ? 'expired' : 'cancelled';
+      console.log(`⚠️ Payment ${statusLabel} for order: ${transactionId} (Order #${order.orderNumber})`);
       
       try {
         // Update order status to cancelled
@@ -280,7 +281,7 @@ export async function handleIPN(ipnData: any): Promise<{ success: boolean; error
         // Update payment status to failed (ensures order stays hidden from admin)
         await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'failed');
         
-        // RESTORE STOCK for cancelled payment
+        // RESTORE STOCK for cancelled/expired payment
         for (const item of order.items) {
           try {
             await catalogRepo.incrementStock(item.productId, item.quantity);
@@ -292,11 +293,34 @@ export async function handleIPN(ipnData: any): Promise<{ success: boolean; error
         
         console.log(`✅ Order ${order.orderNumber} status updated: cancelled, payment: failed, stock restored`);
       } catch (error: any) {
-        console.error(`❌ Error handling cancelled payment for ${transactionId}:`, error);
+        console.error(`❌ Error handling ${statusLabel} payment for ${transactionId}:`, error);
         throw error;
       }
     } else {
+      // Unknown status - log details and handle gracefully
       console.warn(`⚠️ Unknown payment status "${status}" for transaction: ${transactionId}`);
+      console.warn(`Full IPN data for debugging:`, JSON.stringify(ipnData, null, 2));
+      
+      // For unknown statuses, verify with SSLCommerz API to get actual status
+      try {
+        console.log(`🔍 Verifying payment status with SSLCommerz API for unknown status: ${status}`);
+        const verification = await gateway.queryTransaction(order.orderNumber);
+        if (verification.success && verification.status) {
+          console.log(`✅ API verification returned status: ${verification.status}`);
+          // If API says it's valid, update accordingly
+          if (verification.status === 'VALID') {
+            await orderRepo.updateOrderStatus(order._id!.toString(), 'confirmed');
+            await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'completed');
+            console.log(`✅ Order ${order.orderNumber} updated to confirmed based on API verification`);
+          } else if (verification.status === 'FAILED' || verification.status === 'CANCELLED') {
+            await orderRepo.updateOrderStatus(order._id!.toString(), 'cancelled');
+            await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'failed');
+            console.log(`✅ Order ${order.orderNumber} updated to cancelled based on API verification`);
+          }
+        }
+      } catch (verifyError: any) {
+        console.error(`❌ Failed to verify unknown status with API:`, verifyError);
+      }
     }
 
     return { success: true };

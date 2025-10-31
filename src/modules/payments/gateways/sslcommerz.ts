@@ -265,19 +265,25 @@ export class SSLCommerzGateway {
       const { verify_sign, verify_key } = ipnData;
 
       if (!verify_sign || !verify_key) {
-        logger.warn('IPN signature verification failed: missing signature data');
+        logger.warn(`IPN signature verification failed: missing signature data. Has verify_sign: ${!!verify_sign}, has verify_key: ${!!verify_key}, IPN keys: ${Object.keys(ipnData).join(', ')}`);
         return false;
       }
 
-      // Verify with SSLCommerz API
-      // In production, you should verify the signature matches
-      // For now, we'll do basic validation
+      // SSLCommerz signature verification: MD5(store_password + verify_key)
+      // Note: verify_key is typically the transaction ID (tran_id)
       const expectedSign = crypto
         .createHash('md5')
         .update(this.config.storePassword + verify_key)
-        .digest('hex');
+        .digest('hex')
+        .toLowerCase();
 
-      return verify_sign === expectedSign;
+      const isValid = verify_sign.toLowerCase() === expectedSign;
+      
+      if (!isValid) {
+        logger.warn(`IPN signature mismatch. Expected: ${expectedSign.substring(0, 10)}..., Received: ${verify_sign.toLowerCase().substring(0, 10)}..., Verify Key: ${verify_key}, Tran ID: ${ipnData.tran_id}`);
+      }
+      
+      return isValid;
     } catch (error) {
       logger.error({ error }, 'IPN signature verification error');
       return false;
