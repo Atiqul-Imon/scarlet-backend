@@ -7,6 +7,37 @@ import type { Order, OrderItem, ShippingAddress, PaymentMethod } from './model.j
 import { AppError } from '../../core/errors/AppError.js';
 import { ObjectId } from 'mongodb';
 
+// Location-based delivery charges
+const DELIVERY_CHARGE_INSIDE_DHAKA = 80;
+const DELIVERY_CHARGE_OUTSIDE_DHAKA = 150;
+const FREE_SHIPPING_THRESHOLD = 2000; // Free shipping for orders above 2000 BDT
+
+/**
+ * Calculate shipping cost based on delivery area and order subtotal
+ * @param deliveryArea - 'inside_dhaka' or 'outside_dhaka'
+ * @param subtotal - Order subtotal amount
+ * @returns Shipping cost in BDT
+ */
+function calculateShippingCost(
+  deliveryArea: 'inside_dhaka' | 'outside_dhaka',
+  subtotal: number
+): number {
+  // Free shipping for orders above threshold
+  if (subtotal >= FREE_SHIPPING_THRESHOLD) {
+    return 0;
+  }
+
+  // Location-based delivery charges
+  if (deliveryArea === 'inside_dhaka') {
+    return DELIVERY_CHARGE_INSIDE_DHAKA;
+  } else if (deliveryArea === 'outside_dhaka') {
+    return DELIVERY_CHARGE_OUTSIDE_DHAKA;
+  }
+
+  // Fallback: default to outside Dhaka charge if area is not specified
+  return DELIVERY_CHARGE_OUTSIDE_DHAKA;
+}
+
 export interface CreateOrderRequest {
   // Shipping Information
   firstName: string;
@@ -14,13 +45,20 @@ export interface CreateOrderRequest {
   email?: string; // Made optional
   phone: string;
   address: string;
+  // Location-based fields
+  deliveryArea: 'inside_dhaka' | 'outside_dhaka'; // Delivery location selection
+  dhakaArea?: string; // Thana/Area in Dhaka (for inside_dhaka)
+  division?: string; // Division/City (for outside_dhaka)
+  district?: string; // District/Zilla (for outside_dhaka)
+  upazilla?: string; // Upazilla (for outside_dhaka)
+  // Legacy fields (keep for backward compatibility)
   city: string;
   area: string;
   postalCode: string;
   
   // Payment Information
   paymentMethod: PaymentMethod;
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded'; // Made optional, defaults to 'pending'
   
   // Optional fields
   notes?: string;
@@ -99,18 +137,41 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
     }
   }
 
-  // Calculate totals
+  // Validate delivery area
+  if (!orderData.deliveryArea) {
+    throw new AppError('Delivery area is required (inside_dhaka or outside_dhaka)', { status: 400 });
+  }
+
+  // Validate location fields based on delivery area
+  if (orderData.deliveryArea === 'inside_dhaka') {
+    if (!orderData.dhakaArea) {
+      throw new AppError('Dhaka area (Thana) is required for inside Dhaka delivery', { status: 400 });
+    }
+  } else if (orderData.deliveryArea === 'outside_dhaka') {
+    if (!orderData.division || !orderData.district || !orderData.upazilla) {
+      throw new AppError('Division, District, and Upazilla are required for outside Dhaka delivery', { status: 400 });
+    }
+  }
+
+  // Calculate totals with location-based shipping
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shippingCost = 0; // Free shipping
+  const shippingCost = calculateShippingCost(orderData.deliveryArea, subtotal);
   const total = subtotal + shippingCost;
 
-  // Create shipping address
+  // Create shipping address with location-based fields
   const shippingAddress: ShippingAddress = {
     firstName: orderData.firstName,
-    lastName: orderData.lastName || '',
-    email: orderData.email || '',
+    lastName: orderData.lastName,
+    email: orderData.email,
     phone: orderData.phone,
     address: orderData.address,
+    // Location-based fields
+    deliveryArea: orderData.deliveryArea,
+    dhakaArea: orderData.dhakaArea,
+    division: orderData.division,
+    district: orderData.district,
+    upazilla: orderData.upazilla,
+    // Legacy fields (keep for backward compatibility)
     city: orderData.city,
     area: orderData.area,
     postalCode: orderData.postalCode
@@ -127,7 +188,7 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
     shippingAddress,
     paymentInfo: {
       method: orderData.paymentMethod,
-      status: orderData.paymentStatus === 'paid' ? 'completed' : orderData.paymentStatus
+      status: orderData.paymentStatus === 'paid' ? 'completed' : (orderData.paymentStatus || 'pending')
     },
     status: 'pending',
     subtotal,
@@ -240,18 +301,41 @@ export async function createFromGuestCart(cartItems: any[], orderData: CreateOrd
     }
   }
 
-  // Calculate totals
+  // Validate delivery area
+  if (!orderData.deliveryArea) {
+    throw new AppError('Delivery area is required (inside_dhaka or outside_dhaka)', { status: 400 });
+  }
+
+  // Validate location fields based on delivery area
+  if (orderData.deliveryArea === 'inside_dhaka') {
+    if (!orderData.dhakaArea) {
+      throw new AppError('Dhaka area (Thana) is required for inside Dhaka delivery', { status: 400 });
+    }
+  } else if (orderData.deliveryArea === 'outside_dhaka') {
+    if (!orderData.division || !orderData.district || !orderData.upazilla) {
+      throw new AppError('Division, District, and Upazilla are required for outside Dhaka delivery', { status: 400 });
+    }
+  }
+
+  // Calculate totals with location-based shipping
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const shippingCost = 0; // Free shipping
+  const shippingCost = calculateShippingCost(orderData.deliveryArea, subtotal);
   const total = subtotal + shippingCost;
 
-  // Create shipping address
+  // Create shipping address with location-based fields
   const shippingAddress: ShippingAddress = {
     firstName: orderData.firstName,
-    lastName: orderData.lastName || '',
-    email: orderData.email || '',
+    lastName: orderData.lastName,
+    email: orderData.email,
     phone: orderData.phone,
     address: orderData.address,
+    // Location-based fields
+    deliveryArea: orderData.deliveryArea,
+    dhakaArea: orderData.dhakaArea,
+    division: orderData.division,
+    district: orderData.district,
+    upazilla: orderData.upazilla,
+    // Legacy fields (keep for backward compatibility)
     city: orderData.city,
     area: orderData.area,
     postalCode: orderData.postalCode
@@ -268,7 +352,7 @@ export async function createFromGuestCart(cartItems: any[], orderData: CreateOrd
     shippingAddress,
     paymentInfo: {
       method: orderData.paymentMethod,
-      status: orderData.paymentStatus === 'paid' ? 'completed' : orderData.paymentStatus
+      status: orderData.paymentStatus === 'paid' ? 'completed' : (orderData.paymentStatus || 'pending')
     },
     status: 'pending',
     subtotal,

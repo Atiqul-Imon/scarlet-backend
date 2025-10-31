@@ -31,6 +31,31 @@ const validateOrderData = (data: any): { valid: boolean; errors: Record<string, 
     errors.address = 'Address must be at least 10 characters';
   }
 
+  // Delivery area validation
+  if (!data.deliveryArea) {
+    errors.deliveryArea = 'Delivery area is required (inside_dhaka or outside_dhaka)';
+  } else if (!['inside_dhaka', 'outside_dhaka'].includes(data.deliveryArea)) {
+    errors.deliveryArea = 'Delivery area must be either "inside_dhaka" or "outside_dhaka"';
+  } else {
+    // Location-specific validation
+    if (data.deliveryArea === 'inside_dhaka') {
+      if (!data.dhakaArea) {
+        errors.dhakaArea = 'Dhaka area (Thana) is required for inside Dhaka delivery';
+      }
+    } else if (data.deliveryArea === 'outside_dhaka') {
+      if (!data.division) {
+        errors.division = 'Division is required for outside Dhaka delivery';
+      }
+      if (!data.district) {
+        errors.district = 'District (Zilla) is required for outside Dhaka delivery';
+      }
+      if (!data.upazilla) {
+        errors.upazilla = 'Upazilla is required for outside Dhaka delivery';
+      }
+    }
+  }
+
+  // Legacy fields (keep for backward compatibility)
   if (!data.city) {
     errors.city = 'City is required';
   }
@@ -77,16 +102,23 @@ export async function create(req: any, res: any) {
   try {
     const orderData: CreateOrderRequest = {
       firstName: req.body.firstName.trim(),
-      lastName: req.body.lastName?.trim() || '',
-      email: req.body.email?.toLowerCase().trim() || '',
+      lastName: req.body.lastName?.trim(),
+      email: req.body.email?.toLowerCase().trim(),
       phone: req.body.phone.trim(),
       address: req.body.address.trim(),
+      // Location-based fields
+      deliveryArea: req.body.deliveryArea,
+      dhakaArea: req.body.dhakaArea?.trim(),
+      division: req.body.division?.trim(),
+      district: req.body.district?.trim(),
+      upazilla: req.body.upazilla?.trim(),
+      // Legacy fields (keep for backward compatibility)
       city: req.body.city.trim(),
       area: req.body.area.trim(),
       postalCode: req.body.postalCode.trim(),
       paymentMethod: req.body.paymentMethod,
       paymentStatus: 'pending',
-      notes: req.body.notes?.trim() || undefined,
+      notes: req.body.notes?.trim(),
     };
 
     const order = await presenter.createFromCart(userId, orderData);
@@ -110,6 +142,13 @@ export async function create(req: any, res: any) {
       return fail(res, { 
         message: error.message,
         code: 'INSUFFICIENT_STOCK' 
+      }, 400);
+    }
+
+    if (error.message.includes('Delivery area') || error.message.includes('Dhaka area') || error.message.includes('Division') || error.message.includes('District') || error.message.includes('Upazilla')) {
+      return fail(res, { 
+        message: error.message,
+        code: 'LOCATION_VALIDATION_ERROR' 
       }, 400);
     }
     
@@ -149,16 +188,23 @@ export async function createGuestOrder(req: any, res: any) {
 
     const orderData: CreateOrderRequest = {
       firstName: req.body.firstName.trim(),
-      lastName: req.body.lastName?.trim() || '',
-      email: req.body.email?.toLowerCase().trim() || '',
+      lastName: req.body.lastName?.trim(),
+      email: req.body.email?.toLowerCase().trim(),
       phone: req.body.phone.trim(),
       address: req.body.address.trim(),
+      // Location-based fields
+      deliveryArea: req.body.deliveryArea,
+      dhakaArea: req.body.dhakaArea?.trim(),
+      division: req.body.division?.trim(),
+      district: req.body.district?.trim(),
+      upazilla: req.body.upazilla?.trim(),
+      // Legacy fields (keep for backward compatibility)
       city: req.body.city.trim(),
       area: req.body.area.trim(),
       postalCode: req.body.postalCode.trim(),
       paymentMethod: req.body.paymentMethod,
       paymentStatus: 'pending',
-      notes: req.body.notes?.trim() || undefined,
+      notes: req.body.notes?.trim(),
     };
 
     const order = await presenter.createFromGuestCart(cart.items, orderData);
@@ -182,6 +228,13 @@ export async function createGuestOrder(req: any, res: any) {
       return fail(res, { 
         message: error.message,
         code: 'INSUFFICIENT_STOCK' 
+      }, 400);
+    }
+
+    if (error.message.includes('Delivery area') || error.message.includes('Dhaka area') || error.message.includes('Division') || error.message.includes('District') || error.message.includes('Upazilla')) {
+      return fail(res, { 
+        message: error.message,
+        code: 'LOCATION_VALIDATION_ERROR' 
       }, 400);
     }
     

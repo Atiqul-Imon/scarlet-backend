@@ -19,6 +19,13 @@ export interface ShippingAddress {
   email?: string; // Made optional
   phone: string;
   address: string;
+  // Location-based fields
+  deliveryArea: 'inside_dhaka' | 'outside_dhaka'; // Delivery location selection
+  dhakaArea?: string; // Thana/Area in Dhaka (for inside_dhaka)
+  division?: string; // Division/City (for outside_dhaka)
+  district?: string; // District/Zilla (for outside_dhaka)
+  upazilla?: string; // Upazilla (for outside_dhaka)
+  // Legacy fields (keep for backward compatibility)
   city: string;
   area: string;
   postalCode: string;
