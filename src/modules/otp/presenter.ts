@@ -309,15 +309,19 @@ export async function sendOTPSMS(phone: string, otp: string, purpose: 'phone_ver
     }
   } catch (error: any) {
     // If SMS service fails, log to console as fallback
+    // Don't throw error - we still want OTP to be created for manual verification
     logger.error({ 
-      error: error.message, 
+      error: error.message,
+      errorStack: error.stack,
       phone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'), 
       otp, 
       purpose 
-    }, 'Failed to send OTP SMS');
+    }, 'Failed to send OTP SMS - will be logged to console');
     
+    // Log to console so admin can see OTP if SMS fails
     console.log(`\n📱 OTP SMS FALLBACK for ${phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')}:`);
     console.log(`Code: ${otp}`);
-    console.log(`Error: ${error.message}\n`);
+    console.log(`Error: ${error.message}`);
+    console.log(`Purpose: ${purpose}\n`);
   }
 }

@@ -137,13 +137,24 @@ export async function sendPasswordResetOTP(
       });
     }
 
+    logger.info({ 
+      userId: user._id, 
+      identifier: normalizedIdentifier,
+      userPhone: user.phone,
+      phoneFormat: user.phone.startsWith('+') ? 'with-plus' : user.phone.startsWith('88') ? 'without-plus' : 'local-format'
+    }, 'Preparing to send password reset OTP');
+
     // Send OTP via SMS with password_reset purpose
     await otpPresenter.generateAndSendOTP(
       { phone: user.phone, purpose: 'password_reset' },
       sessionId
     );
 
-    logger.info({ userId: user._id, identifier: normalizedIdentifier }, 'Password reset OTP sent');
+    logger.info({ 
+      userId: user._id, 
+      identifier: normalizedIdentifier,
+      phone: user.phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')
+    }, 'Password reset OTP sent successfully');
 
     return {
       success: true,
