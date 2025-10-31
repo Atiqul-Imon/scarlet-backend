@@ -29,10 +29,30 @@ const normalizeIdentifier = (identifier: string): string => {
     return identifier.toLowerCase();
   }
   if (validatePhone(identifier)) {
-    // Normalize phone to +8801XXXXXXXXX format
-    if (identifier.startsWith('01')) {
-      return '+8801' + identifier.substring(2); // Remove '01' and add '+8801'
+    // Normalize phone to +8801XXXXXXXXX format (matches database format)
+    // This ensures user lookup works regardless of input format
+    const cleanPhone = identifier.replace(/[\s\-\(\)]/g, ''); // Remove spaces, dashes, parentheses
+    
+    if (cleanPhone.startsWith('+8801')) {
+      // Already in correct format: +8801XXXXXXXXX
+      return cleanPhone;
+    } else if (cleanPhone.startsWith('8801')) {
+      // 8801XXXXXXXXX -> +8801XXXXXXXXX
+      return '+' + cleanPhone;
+    } else if (cleanPhone.startsWith('01')) {
+      // 01XXXXXXXXX -> +8801XXXXXXXXX
+      return '+8801' + cleanPhone.substring(2);
     }
+    
+    // Try to extract digits and normalize
+    const digits = cleanPhone.replace(/\D/g, ''); // Extract only digits
+    if (digits.length === 13 && digits.startsWith('8801')) {
+      return '+' + digits; // 8801XXXXXXXXX -> +8801XXXXXXXXX
+    } else if (digits.length === 11 && digits.startsWith('01')) {
+      return '+8801' + digits.substring(2); // 01XXXXXXXXX -> +8801XXXXXXXXX
+    }
+    
+    // Return as-is if can't normalize (validation will catch invalid formats)
     return identifier;
   }
   return identifier;
@@ -110,8 +130,14 @@ export async function sendPasswordResetOTP(
     if (validateEmail(normalizedIdentifier)) {
       user = await repo.findUserByEmail(normalizedIdentifier);
     } else if (validatePhone(normalizedIdentifier)) {
-      // Use flexible phone lookup to try multiple formats
-      user = await repo.findUserByPhoneFlexible(identifier);
+      // Use normalized identifier for lookup (matches database format: +8801XXXXXXXXX)
+      // The normalizedIdentifier is now in +8801XXXXXXXXX format, which matches DB
+      user = await repo.findUserByPhone(normalizedIdentifier);
+      
+      // If not found with normalized format, try flexible lookup as fallback
+      if (!user) {
+        user = await repo.findUserByPhoneFlexible(identifier);
+      }
     } else {
       throw new AppError('Please enter a valid email or phone number', {
         status: 400,
@@ -216,8 +242,14 @@ export async function verifyPasswordResetOTP(
     if (validateEmail(normalizedIdentifier)) {
       user = await repo.findUserByEmail(normalizedIdentifier);
     } else if (validatePhone(normalizedIdentifier)) {
-      // Use flexible phone lookup to try multiple formats
-      user = await repo.findUserByPhoneFlexible(identifier);
+      // Use normalized identifier for lookup (matches database format: +8801XXXXXXXXX)
+      // The normalizedIdentifier is now in +8801XXXXXXXXX format, which matches DB
+      user = await repo.findUserByPhone(normalizedIdentifier);
+      
+      // If not found with normalized format, try flexible lookup as fallback
+      if (!user) {
+        user = await repo.findUserByPhoneFlexible(identifier);
+      }
     }
 
     if (!user || !user.phone) {
