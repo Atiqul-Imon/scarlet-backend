@@ -96,7 +96,18 @@ export async function generateAndSendOTP(
     
     // Send SMS - if this fails, we still want to return success but log the error
     try {
+      logger.info({
+        phone: normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
+        phoneOriginal: normalizedPhone,
+        purpose,
+        sessionId,
+        otpId: createdOTP._id,
+        otpCode: code,
+        aboutToSendSMS: true
+      }, 'About to send OTP SMS via sendOTPSMS');
+      
       await sendOTPSMS(normalizedPhone, code, purpose);
+      
       logger.info({
         phone: normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'), // Mask phone for security
         purpose,
@@ -109,6 +120,7 @@ export async function generateAndSendOTP(
         error: smsError.message,
         errorStack: smsError.stack,
         errorCode: smsError.code,
+        errorName: smsError.name,
         phone: normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
         phoneOriginal: normalizedPhone,
         otpCode: code,
@@ -117,10 +129,20 @@ export async function generateAndSendOTP(
         otpId: createdOTP._id
       }, 'SMS sending failed - OTP saved in database but SMS not sent');
       
-      // Log OTP to console for admin access
-      console.log(`\n🚨 SMS FAILED - OTP Code: ${code} for phone ${normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')} (Purpose: ${purpose})`);
+      // Log OTP to console for admin access - CRITICAL FOR DEBUGGING
+      console.log(`\n🚨🚨🚨 SMS FAILED - OTP Code: ${code} 🚨🚨🚨`);
+      console.log(`Phone: ${normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')}`);
+      console.log(`Phone Original: ${normalizedPhone}`);
+      console.log(`Purpose: ${purpose}`);
       console.log(`Error: ${smsError.message}`);
-      console.log(`Phone Format: ${normalizedPhone}\n`);
+      console.log(`Error Name: ${smsError.name}`);
+      console.log(`Error Code: ${smsError.code || 'N/A'}`);
+      if (smsError.stack) {
+        console.log(`Stack: ${smsError.stack.substring(0, 500)}`);
+      }
+      console.log(`Session ID: ${sessionId}`);
+      console.log(`OTP ID: ${createdOTP._id}`);
+      console.log(`Time: ${new Date().toISOString()}\n`);
       
       // Don't throw - we want to return success so frontend shows "code sent"
       // Admin can check logs for the OTP code
@@ -309,12 +331,15 @@ export async function sendOTPSMS(phone: string, otp: string, purpose: 'phone_ver
     if (isConfigured) {
       // Map purpose to SMS service purpose
       const smsPurpose = purpose === 'password_reset' ? 'passwordReset' : 
+                        purpose === 'guest_checkout' ? 'verification' :
                         purpose === 'phone_verification' ? 'verification' : 'verification';
       
       logger.info({
         phone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
+        phoneOriginal: phone,
         purpose,
-        smsPurpose
+        smsPurpose,
+        phoneLength: phone.length
       }, 'Calling SMS service.sendOTP');
       
       // Send via SSLWireless with bilingual message
