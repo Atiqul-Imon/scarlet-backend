@@ -156,85 +156,91 @@ export async function handleIPN(ipnData: any): Promise<{ success: boolean; error
     console.log('Payment status:', status);
     console.log('Amount:', amount);
 
+    // Import order repository
+    const orderRepo = await import('../orders/repository.js');
+    const catalogRepo = await import('../catalog/repository.js');
+    
+    // Find order by order number (transactionId/tran_id is the order number)
+    const order = await orderRepo.getOrderByOrderNumber(transactionId);
+    
+    if (!order) {
+      console.error(`Order not found for transaction: ${transactionId}`);
+      return { success: false, error: `Order not found for transaction: ${transactionId}` };
+    }
+    
     // Update order status based on payment result
-    if (status === 'VALID') {
+    if (status === 'VALID' || status === 'VALIDATED') {
       // Payment successful - update order to confirmed/paid
-      console.log('Payment successful for order:', transactionId);
+      console.log(`✅ Payment successful for order: ${transactionId} (Order #${order.orderNumber})`);
       
       try {
-        // Import order repository to update order status
-        const orderRepo = await import('../orders/repository.js');
-        const catalogRepo = await import('../catalog/repository.js');
+        // Update order status to confirmed
+        await orderRepo.updateOrderStatus(order._id!.toString(), 'confirmed');
         
-        // Find order by order number (transactionId is the order number)
-        const order = await orderRepo.getOrderByOrderNumber(transactionId);
+        // CRITICAL: Update payment status to completed (this makes the order visible in admin panel)
+        await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'completed');
         
-        if (order) {
-          // Update order status to confirmed
-          await orderRepo.updateOrderStatus(order._id!.toString(), 'confirmed');
-          
-          // Update payment status to completed
-          await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'completed');
-          
-          console.log('Order status updated to confirmed for:', transactionId);
-        } else {
-          console.error('Order not found for transaction:', transactionId);
-        }
-      } catch (error) {
-        console.error('Error updating order status:', error);
+        console.log(`✅ Order ${order.orderNumber} status updated: confirmed, payment: completed`);
+      } catch (error: any) {
+        console.error(`❌ Error updating order status for ${transactionId}:`, error);
+        throw error;
       }
       
-    } else if (status === 'FAILED') {
-      // Payment failed - update order to failed
-      console.log('Payment failed for order:', transactionId);
+    } else if (status === 'FAILED' || status === 'INVALID_TRANSACTION') {
+      // Payment failed - update order and restore stock
+      console.log(`❌ Payment failed for order: ${transactionId} (Order #${order.orderNumber})`);
       
       try {
-        const orderRepo = await import('../orders/repository.js');
-        const catalogRepo = await import('../catalog/repository.js');
+        // Update order status to cancelled
+        await orderRepo.updateOrderStatus(order._id!.toString(), 'cancelled');
         
-        const order = await orderRepo.getOrderByOrderNumber(transactionId);
+        // Update payment status to failed (ensures order stays hidden from admin)
+        await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'failed');
         
-        if (order) {
-          // Update order status to failed
-          await orderRepo.updateOrderStatus(order._id!.toString(), 'cancelled');
-          
-          // RESTORE STOCK for failed payment
-          for (const item of order.items) {
+        // RESTORE STOCK for failed payment
+        for (const item of order.items) {
+          try {
             await catalogRepo.incrementStock(item.productId, item.quantity);
-            console.log(`Restored ${item.quantity} units of stock for product ${item.productId}`);
+            console.log(`✅ Restored ${item.quantity} units of stock for product ${item.productId}`);
+          } catch (stockError: any) {
+            console.error(`❌ Failed to restore stock for product ${item.productId}:`, stockError);
           }
-          
-          console.log('Order status updated to cancelled and stock restored for:', transactionId);
         }
-      } catch (error) {
-        console.error('Error handling failed payment:', error);
+        
+        console.log(`✅ Order ${order.orderNumber} status updated: cancelled, payment: failed, stock restored`);
+      } catch (error: any) {
+        console.error(`❌ Error handling failed payment for ${transactionId}:`, error);
+        throw error;
       }
       
-    } else if (status === 'CANCELLED') {
-      // Payment cancelled - update order to cancelled
-      console.log('Payment cancelled for order:', transactionId);
+    } else if (status === 'CANCELLED' || status === 'UNATTEMPTED') {
+      // Payment cancelled - update order and restore stock
+      console.log(`⚠️ Payment cancelled for order: ${transactionId} (Order #${order.orderNumber})`);
       
       try {
-        const orderRepo = await import('../orders/repository.js');
-        const catalogRepo = await import('../catalog/repository.js');
+        // Update order status to cancelled
+        await orderRepo.updateOrderStatus(order._id!.toString(), 'cancelled');
         
-        const order = await orderRepo.getOrderByOrderNumber(transactionId);
+        // Update payment status to failed (ensures order stays hidden from admin)
+        await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'failed');
         
-        if (order) {
-          // Update order status to cancelled
-          await orderRepo.updateOrderStatus(order._id!.toString(), 'cancelled');
-          
-          // RESTORE STOCK for cancelled payment
-          for (const item of order.items) {
+        // RESTORE STOCK for cancelled payment
+        for (const item of order.items) {
+          try {
             await catalogRepo.incrementStock(item.productId, item.quantity);
-            console.log(`Restored ${item.quantity} units of stock for product ${item.productId}`);
+            console.log(`✅ Restored ${item.quantity} units of stock for product ${item.productId}`);
+          } catch (stockError: any) {
+            console.error(`❌ Failed to restore stock for product ${item.productId}:`, stockError);
           }
-          
-          console.log('Order status updated to cancelled and stock restored for:', transactionId);
         }
-      } catch (error) {
-        console.error('Error handling cancelled payment:', error);
+        
+        console.log(`✅ Order ${order.orderNumber} status updated: cancelled, payment: failed, stock restored`);
+      } catch (error: any) {
+        console.error(`❌ Error handling cancelled payment for ${transactionId}:`, error);
+        throw error;
       }
+    } else {
+      console.warn(`⚠️ Unknown payment status "${status}" for transaction: ${transactionId}`);
     }
 
     return { success: true };

@@ -13,11 +13,17 @@ export async function insertOrder(order: Order): Promise<Order> {
 export async function listOrdersByUser(userId: string): Promise<Order[]> {
   const db = await getDb();
   // Hide SSLCommerz orders until payment is completed
+  // Business rule: Only show SSLCommerz orders after successful payment
   const query: any = {
     userId,
     $or: [
-      { 'paymentInfo.method': { $ne: 'sslcommerz' } },
-      { 'paymentInfo.status': 'completed' }
+      { 
+        'paymentInfo.method': { $exists: true, $ne: 'sslcommerz' }
+      },
+      { 
+        'paymentInfo.method': 'sslcommerz',
+        'paymentInfo.status': { $exists: true, $eq: 'completed' }
+      }
     ]
   };
   return db.collection<Order>('orders')

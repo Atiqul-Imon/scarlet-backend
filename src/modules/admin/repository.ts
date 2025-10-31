@@ -290,10 +290,18 @@ export async function getOrders(
   
   // Business rule: Only show SSLCommerz orders after successful payment
   // Show all non-SSLCommerz orders (e.g., COD) regardless of payment status
+  // This filter ensures:
+  // 1. Orders with payment method that is NOT 'sslcommerz' are always shown
+  // 2. Orders with payment method 'sslcommerz' are ONLY shown if payment status is 'completed'
   const paymentFilter = {
     $or: [
-      { 'paymentInfo.method': { $ne: 'sslcommerz' } },
-      { 'paymentInfo.status': 'completed' }
+      { 
+        'paymentInfo.method': { $exists: true, $ne: 'sslcommerz' }
+      },
+      { 
+        'paymentInfo.method': 'sslcommerz',
+        'paymentInfo.status': { $exists: true, $eq: 'completed' }
+      }
     ]
   };
   
