@@ -95,14 +95,30 @@ export async function generateAndSendOTP(
     const createdOTP = await repo.createOTP(otp);
     
     // Send SMS (in development, log to console)
-    await sendOTPSMS(normalizedPhone, code, purpose);
-    
-    logger.info({
-      phone: normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'), // Mask phone for security
-      purpose,
-      sessionId,
-      otpId: createdOTP._id
-    }, 'OTP generated and sent');
+    try {
+      await sendOTPSMS(normalizedPhone, code, purpose);
+      logger.info({
+        phone: normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'), // Mask phone for security
+        purpose,
+        sessionId,
+        otpId: createdOTP._id,
+        otpCode: code // Include OTP in logs for debugging if needed
+      }, 'OTP generated and SMS sent successfully');
+    } catch (smsError: any) {
+      // SMS sending failed, but OTP is saved in DB
+      logger.error({
+        error: smsError.message,
+        errorStack: smsError.stack,
+        phone: normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
+        otpCode: code,
+        purpose,
+        sessionId,
+        otpId: createdOTP._id
+      }, 'SMS sending failed, but OTP saved in database - check server logs for OTP code');
+      
+      // Log OTP to console for admin access
+      console.log(`\n🚨 SMS FAILED - OTP Code: ${code} for phone ${normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')} (Purpose: ${purpose})\n`);
+    }
     
     return {
       success: true,

@@ -1,0 +1,25 @@
+#!/bin/bash
+# Script to check OTP SMS logs on DigitalOcean server
+
+echo "🔍 Checking OTP SMS Logs..."
+echo ""
+echo "Run these commands on your DigitalOcean server:"
+echo ""
+echo "1. Check recent OTP-related logs:"
+echo "   pm2 logs | grep -i 'otp\|sms\|password.*reset' | tail -50"
+echo ""
+echo "2. Check for SMS failures:"
+echo "   pm2 logs | grep -i 'sms.*fail\|failed.*sms\|SMS FAILED' | tail -30"
+echo ""
+echo "3. Check phone number format logs:"
+echo "   pm2 logs | grep -i 'phone.*format\|userPhone\|normalizedPhone' | tail -30"
+echo ""
+echo "4. Check SSLWireless configuration:"
+echo "   pm2 logs | grep -i 'sslwireless.*configured\|isConfigured' | tail -20"
+echo ""
+echo "5. Check all recent error logs:"
+echo "   pm2 logs --err | tail -50"
+echo ""
+echo "6. Real-time log monitoring:"
+echo "   pm2 logs --lines 0"
+
