@@ -137,16 +137,31 @@ export async function sendPasswordResetOTP(
       });
     }
 
+    // Normalize user phone to ensure correct format for OTP
+    // user.phone might be stored as +8801XXXXXXXXX, 8801XXXXXXXXX, or 01XXXXXXXXX
+    let phoneForOTP = user.phone;
+    
+    // Remove + if present for validation (OTP module will add it back)
+    if (phoneForOTP.startsWith('+8801')) {
+      phoneForOTP = phoneForOTP.substring(1); // Remove +, becomes 8801XXXXXXXXX
+    } else if (phoneForOTP.startsWith('8801')) {
+      phoneForOTP = phoneForOTP; // Already in 8801XXXXXXXXX format
+    } else if (phoneForOTP.startsWith('01')) {
+      phoneForOTP = phoneForOTP; // Already in 01XXXXXXXXX format (will be normalized)
+    }
+    
     logger.info({ 
       userId: user._id, 
       identifier: normalizedIdentifier,
-      userPhone: user.phone,
+      userPhoneOriginal: user.phone,
+      phoneForOTP: phoneForOTP,
       phoneFormat: user.phone.startsWith('+') ? 'with-plus' : user.phone.startsWith('88') ? 'without-plus' : 'local-format'
     }, 'Preparing to send password reset OTP');
 
     // Send OTP via SMS with password_reset purpose
+    // Use normalized phone format
     await otpPresenter.generateAndSendOTP(
-      { phone: user.phone, purpose: 'password_reset' },
+      { phone: phoneForOTP, purpose: 'password_reset' },
       sessionId
     );
 
