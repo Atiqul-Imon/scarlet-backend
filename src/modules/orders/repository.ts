@@ -12,20 +12,30 @@ export async function insertOrder(order: Order): Promise<Order> {
 
 export async function listOrdersByUser(userId: string): Promise<Order[]> {
   const db = await getDb();
-  // Hide SSLCommerz orders until payment is completed
-  // Business rule: Only show SSLCommerz orders after successful payment
-  const query: any = {
-    userId,
+  
+  // Business rule: Only show orders with completed payment for non-COD methods
+  // Show COD orders always (regardless of payment status)
+  // Show all other payment methods (bkash, nagad, rocket, card, sslcommerz) ONLY if payment status is 'completed'
+  // This filter ensures:
+  // 1. Orders with payment method 'cod' are always shown (regardless of payment status)
+  // 2. Orders with any other payment method are ONLY shown if payment status is 'completed'
+  const paymentFilter = {
     $or: [
       { 
-        'paymentInfo.method': { $exists: true, $ne: 'sslcommerz' }
+        'paymentInfo.method': 'cod'
       },
       { 
-        'paymentInfo.method': 'sslcommerz',
-        'paymentInfo.status': { $exists: true, $eq: 'completed' }
+        'paymentInfo.method': { $in: ['bkash', 'nagad', 'rocket', 'card', 'sslcommerz'] },
+        'paymentInfo.status': 'completed'
       }
     ]
   };
+  
+  const query: any = {
+    userId,
+    ...paymentFilter
+  };
+  
   return db.collection<Order>('orders')
     .find(query)
     .sort({ createdAt: -1 })
