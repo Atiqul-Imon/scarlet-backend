@@ -297,4 +297,52 @@ async function testSSLWirelessIP() {
   }
 }
 
+// API endpoint to check SMS service configuration and test OTP sending
+router.get('/check-sms-service', async (req, res) => {
+  try {
+    const { smsService } = await import('../../core/services/smsService.js');
+    const { env } = await import('../../config/env.js');
+    
+    const isConfigured = smsService.isConfigured();
+    
+    // Get recent OTP records from database
+    const { getDb } = await import('../../core/db/mongoClient.js');
+    const db = await getDb();
+    const recentOTPs = await db.collection('otps')
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .toArray();
+    
+    return res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      smsService: {
+        configured: isConfigured,
+        hasApiToken: !!env.sslWirelessApiToken,
+        hasSid: !!env.sslWirelessSid,
+        apiTokenPrefix: env.sslWirelessApiToken ? `${env.sslWirelessApiToken.substring(0, 8)}...` : 'MISSING',
+        sid: env.sslWirelessSid || 'MISSING',
+        masking: env.sslWirelessMasking || 'SCARLET'
+      },
+      recentOTPs: recentOTPs.map(otp => ({
+        phone: otp.phone?.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
+        purpose: otp.purpose,
+        createdAt: otp.createdAt,
+        verified: !!otp.verifiedAt,
+        attempts: otp.attempts
+      })),
+      note: isConfigured 
+        ? 'SMS service is configured. Check server logs for SMS sending errors.'
+        : 'SMS service is NOT configured. Set SSL_WIRELESS_API_TOKEN and SSL_WIRELESS_SID environment variables.'
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export { router };
