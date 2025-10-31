@@ -94,30 +94,36 @@ export async function generateAndSendOTP(
     // Save to database
     const createdOTP = await repo.createOTP(otp);
     
-    // Send SMS (in development, log to console)
+    // Send SMS - if this fails, we still want to return success but log the error
     try {
       await sendOTPSMS(normalizedPhone, code, purpose);
       logger.info({
         phone: normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'), // Mask phone for security
         purpose,
         sessionId,
-        otpId: createdOTP._id,
-        otpCode: code // Include OTP in logs for debugging if needed
+        otpId: createdOTP._id
       }, 'OTP generated and SMS sent successfully');
     } catch (smsError: any) {
-      // SMS sending failed, but OTP is saved in DB
+      // SMS sending failed, but OTP is saved in DB - log extensively
       logger.error({
         error: smsError.message,
         errorStack: smsError.stack,
+        errorCode: smsError.code,
         phone: normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
+        phoneOriginal: normalizedPhone,
         otpCode: code,
         purpose,
         sessionId,
         otpId: createdOTP._id
-      }, 'SMS sending failed, but OTP saved in database - check server logs for OTP code');
+      }, 'SMS sending failed - OTP saved in database but SMS not sent');
       
       // Log OTP to console for admin access
-      console.log(`\n🚨 SMS FAILED - OTP Code: ${code} for phone ${normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')} (Purpose: ${purpose})\n`);
+      console.log(`\n🚨 SMS FAILED - OTP Code: ${code} for phone ${normalizedPhone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')} (Purpose: ${purpose})`);
+      console.log(`Error: ${smsError.message}`);
+      console.log(`Phone Format: ${normalizedPhone}\n`);
+      
+      // Don't throw - we want to return success so frontend shows "code sent"
+      // Admin can check logs for the OTP code
     }
     
     return {
@@ -286,23 +292,42 @@ export async function sendOTPSMS(phone: string, otp: string, purpose: 'phone_ver
   try {
     // Import SSLWireless SMS service
     const { smsService } = await import('../../core/services/smsService.js');
+    const { env } = await import('../../config/env.js');
+    
+    // Log configuration status
+    const isConfigured = smsService.isConfigured();
+    logger.info({
+      phone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
+      purpose,
+      isConfigured,
+      hasApiToken: !!env.sslWirelessApiToken,
+      hasSid: !!env.sslWirelessSid,
+      phoneFormat: phone
+    }, 'Attempting to send OTP SMS');
     
     // Check if service is configured
-    if (smsService.isConfigured()) {
+    if (isConfigured) {
       // Map purpose to SMS service purpose
       const smsPurpose = purpose === 'password_reset' ? 'passwordReset' : 
                         purpose === 'phone_verification' ? 'verification' : 'verification';
       
+      logger.info({
+        phone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
+        purpose,
+        smsPurpose
+      }, 'Calling SMS service.sendOTP');
+      
       // Send via SSLWireless with bilingual message
-      await smsService.sendOTP(phone, otp, smsPurpose);
+      const result = await smsService.sendOTP(phone, otp, smsPurpose);
       
       // Log OTP for debugging (only in server logs, not in API response)
       logger.info({ 
-        phone, 
+        phone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
         otp, 
         purpose,
+        smsLogId: result,
         maskedPhone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2') // Mask phone for security
-      }, 'OTP SMS sent via SSLWireless');
+      }, 'OTP SMS sent via SSLWireless - SUCCESS');
       
     } else {
       // Fallback to console logging in development
@@ -317,27 +342,42 @@ export async function sendOTPSMS(phone: string, otp: string, purpose: 'phone_ver
         maskedPhone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')
       }, 'OTP SMS logged (SSLWireless not configured)');
       
+      logger.warn({
+        phone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
+        otp,
+        purpose,
+        reason: 'SSLWireless not configured'
+      }, 'OTP SMS logged to console - SSLWireless not configured');
+      
       console.log(`\n📱 OTP SMS for ${phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')}:`);
       console.log(`Code: ${otp}`);
       console.log(`Message: ${message}`);
       console.log(`Length: ${message.length} characters\n`);
       console.log('⚠️ SSLWireless SMS not configured. Add SSL_WIRELESS_API_TOKEN and SSL_WIRELESS_SID to environment variables.');
+      
+      // Throw error so caller knows SMS didn't actually send
+      throw new Error('SSLWireless SMS service not configured');
     }
   } catch (error: any) {
-    // If SMS service fails, log to console as fallback
-    // Don't throw error - we still want OTP to be created for manual verification
+    // Log detailed error
     logger.error({ 
       error: error.message,
       errorStack: error.stack,
-      phone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'), 
+      errorCode: error.code,
+      phone: phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2'),
+      phoneOriginal: phone,
       otp, 
       purpose 
-    }, 'Failed to send OTP SMS - will be logged to console');
+    }, 'Failed to send OTP SMS');
     
     // Log to console so admin can see OTP if SMS fails
-    console.log(`\n📱 OTP SMS FALLBACK for ${phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')}:`);
+    console.log(`\n🚨 OTP SMS FAILED for ${phone.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')}:`);
     console.log(`Code: ${otp}`);
     console.log(`Error: ${error.message}`);
-    console.log(`Purpose: ${purpose}\n`);
+    console.log(`Purpose: ${purpose}`);
+    console.log(`Phone Format: ${phone}\n`);
+    
+    // Re-throw error so caller can handle it
+    throw error;
   }
 }
