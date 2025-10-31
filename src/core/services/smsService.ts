@@ -210,9 +210,17 @@ class SSLWirelessSMSService {
       purpose
     }, 'Sending bilingual OTP SMS');
     
+    // Generate short CSMS ID (max 20 chars for SSLWireless)
+    // Format: OTP_<purpose_short>_<timestamp_last_9_digits>
+    // Example: OTP_PW_760343411 (18 chars)
+    const purposeShort = purpose === 'passwordReset' ? 'PW' : 
+                        purpose === 'login' ? 'LOG' : 'VER';
+    const timestamp = Date.now().toString().slice(-9); // Last 9 digits
+    const csmsId = `OTP_${purposeShort}_${timestamp}`; // Max 18 chars
+    
     return this.sendSMS(phone, message, {
       masking: this.sid, // Your masking name from SSLWireless
-      csmsId: `OTP_${purpose}_${Date.now()}`
+      csmsId
     });
   }
 
