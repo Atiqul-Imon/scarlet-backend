@@ -112,7 +112,7 @@ export function createApp() {
   app.use(express.json({ 
     limit: isProduction ? `${env.maxFileSize}b` : '1mb' 
   }));
-  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Increased for SSLCommerz IPN
   
   // Logging
   app.use(pinoHttp({ 
