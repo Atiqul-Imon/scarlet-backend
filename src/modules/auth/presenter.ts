@@ -193,7 +193,7 @@ export async function registerUser(input: RegisterRequest): Promise<AuthResponse
 }
 
 // Login user
-export async function loginUser(input: LoginRequest): Promise<AuthResponse> {
+export async function loginUser(input: LoginRequest, req?: any): Promise<AuthResponse> {
   try {
     const normalizedIdentifier = normalizeIdentifier(input.identifier);
     
@@ -210,7 +210,22 @@ export async function loginUser(input: LoginRequest): Promise<AuthResponse> {
     }
 
     // Generate tokens
-    const tokens = await generateTokens(user, input.rememberMe);
+    const tokens = await generateTokens(user, input.rememberMe, req?.ip);
+
+    // Create session if request object is provided
+    if (req) {
+      try {
+        const { createSession } = await import('./sessions/presenter.js');
+        // Calculate expiry time (matching refresh token expiry)
+        const refreshExpiresIn = input.rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60; // seconds
+        const expiresAt = new Date(Date.now() + refreshExpiresIn * 1000).toISOString();
+        
+        await createSession(user._id!, tokens.refreshToken, req, expiresAt);
+      } catch (sessionError) {
+        // Log but don't fail login if session creation fails
+        logger.warn({ error: sessionError, userId: user._id }, 'Failed to create session, continuing with login');
+      }
+    }
 
     // Update last login
     await repo.updateUserById(user._id!, { 
@@ -683,7 +698,7 @@ export async function requestLoginOTP(identifier: string): Promise<{ message: st
 /**
  * Verify OTP and login user immediately (no password change required)
  */
-export async function verifyLoginOTP(identifier: string, otp: string): Promise<AuthResponse> {
+export async function verifyLoginOTP(identifier: string, otp: string, req?: any): Promise<AuthResponse> {
   try {
     const normalizedIdentifier = normalizeIdentifier(identifier);
     
@@ -732,7 +747,18 @@ export async function verifyLoginOTP(identifier: string, otp: string): Promise<A
     otpStore.delete(normalizedIdentifier);
 
     // Generate authentication tokens
-    const tokens = await generateTokens(user);
+    const tokens = await generateTokens(user, false, req?.ip);
+
+    // Create session if request object is provided
+    if (req) {
+      try {
+        const { createSession } = await import('./sessions/presenter.js');
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+        await createSession(user._id!, tokens.refreshToken, req, expiresAt);
+      } catch (sessionError) {
+        logger.warn({ error: sessionError, userId: user._id }, 'Failed to create session, continuing with login');
+      }
+    }
 
     logger.info({ userId: user._id }, 'User logged in via OTP');
 

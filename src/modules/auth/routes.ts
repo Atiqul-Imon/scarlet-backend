@@ -25,4 +25,10 @@ router.post('/verify-phone-otp', requireAuth, rateLimits.auth, controller.verify
 router.post('/request-login-otp', rateLimits.login, controller.requestLoginOTP);
 router.post('/verify-login-otp', rateLimits.login, controller.verifyLoginOTP);
 
+// Session management routes
+import * as sessionController from './sessions/controller.js';
+router.get('/sessions', requireAuth, sessionController.getSessions);
+router.delete('/sessions/:id', requireAuth, sessionController.terminateSession);
+router.delete('/sessions', requireAuth, sessionController.terminateAllSessions);
+
 

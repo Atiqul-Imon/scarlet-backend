@@ -148,7 +148,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await presenter.loginUser({ identifier, password, rememberMe });
+    const result = await presenter.loginUser({ identifier, password, rememberMe }, req);
     ok(res, result);
   } catch (error: any) {
     if (error.message.includes('Invalid credentials')) {
@@ -457,7 +457,7 @@ export const verifyLoginOTP = asyncHandler(async (req: Request, res: Response) =
   }
 
   try {
-    const authResponse = await presenter.verifyLoginOTP(identifier, otp);
+    const authResponse = await presenter.verifyLoginOTP(identifier, otp, req);
     ok(res, authResponse);
   } catch (error: any) {
     if (error.message.includes('Invalid') || error.message.includes('expired')) {

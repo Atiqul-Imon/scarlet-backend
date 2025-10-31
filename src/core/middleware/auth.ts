@@ -23,6 +23,21 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
       if (user) {
         req.user = user;
         req.userId = user._id?.toString();
+        
+        // Update session last active time (non-blocking)
+        // Try to get refresh token from cookies or headers
+        const refreshToken = req.cookies?.refreshToken || req.headers['x-refresh-token'];
+        if (refreshToken) {
+          // Update session activity asynchronously (don't block request)
+          import('../../modules/auth/sessions/presenter.js').then(module => {
+            module.updateSessionActivity(refreshToken).catch(err => {
+              // Silently fail - session update is best effort
+              logger.debug({ error: err }, 'Failed to update session activity');
+            });
+          }).catch(() => {
+            // Ignore import errors
+          });
+        }
       }
     } catch (error) {
       logger.warn({ error, token: token.substring(0, 10) + '...' }, 'Invalid JWT token');
