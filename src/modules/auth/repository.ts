@@ -8,10 +8,42 @@ export async function findUserByEmail(email: string): Promise<User | null> {
   return db.collection<User>('users').findOne({ email });
 }
 
-// Find user by phone
+// Find user by phone (exact match)
 export async function findUserByPhone(phone: string): Promise<User | null> {
   const db = await getDb();
   return db.collection<User>('users').findOne({ phone });
+}
+
+// Find user by phone (flexible - tries multiple formats)
+export async function findUserByPhoneFlexible(phone: string): Promise<User | null> {
+  const db = await getDb();
+  const collection = db.collection<User>('users');
+  
+  // Generate all possible phone formats to try
+  const formats: string[] = [phone]; // Original format
+  
+  // If starts with '01', try with +8801
+  if (phone.startsWith('01')) {
+    formats.push('+8801' + phone.substring(2)); // +8801XXXXXXXXX (normalized)
+    formats.push('+880' + phone.substring(1)); // +8801XXXXXXXXX variant
+    formats.push(phone.substring(1)); // 1XXXXXXXXX (without leading 0)
+  }
+  
+  // If starts with +8801, try without +
+  if (phone.startsWith('+8801')) {
+    formats.push('8801' + phone.substring(5)); // 8801XXXXXXXXX
+    formats.push('01' + phone.substring(5)); // 01XXXXXXXXX
+  }
+  
+  // Remove duplicates
+  const uniqueFormats = Array.from(new Set(formats));
+  
+  // Use MongoDB $or to query all formats in a single query (more efficient)
+  const user = await collection.findOne({
+    phone: { $in: uniqueFormats }
+  });
+  
+  return user || null;
 }
 
 // Find user by ID

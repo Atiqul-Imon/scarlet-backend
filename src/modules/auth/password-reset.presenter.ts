@@ -31,7 +31,7 @@ const normalizeIdentifier = (identifier: string): string => {
   if (validatePhone(identifier)) {
     // Normalize phone to +8801XXXXXXXXX format
     if (identifier.startsWith('01')) {
-      return '+88' + identifier; // Remove '01' and add '+8801'
+      return '+8801' + identifier.substring(2); // Remove '01' and add '+8801'
     }
     return identifier;
   }
@@ -110,7 +110,8 @@ export async function sendPasswordResetOTP(
     if (validateEmail(normalizedIdentifier)) {
       user = await repo.findUserByEmail(normalizedIdentifier);
     } else if (validatePhone(normalizedIdentifier)) {
-      user = await repo.findUserByPhone(normalizedIdentifier);
+      // Use flexible phone lookup to try multiple formats
+      user = await repo.findUserByPhoneFlexible(identifier);
     } else {
       throw new AppError('Please enter a valid email or phone number', {
         status: 400,
@@ -120,7 +121,7 @@ export async function sendPasswordResetOTP(
 
     if (!user) {
       // Don't reveal if user exists for security
-      logger.warn({ identifier: normalizedIdentifier }, 'Password reset OTP requested for non-existent user');
+      logger.warn({ identifier, normalizedIdentifier }, 'Password reset OTP requested for non-existent user');
       // Still return success to prevent user enumeration
       return {
         success: true,
@@ -175,7 +176,8 @@ export async function verifyPasswordResetOTP(
     if (validateEmail(normalizedIdentifier)) {
       user = await repo.findUserByEmail(normalizedIdentifier);
     } else if (validatePhone(normalizedIdentifier)) {
-      user = await repo.findUserByPhone(normalizedIdentifier);
+      // Use flexible phone lookup to try multiple formats
+      user = await repo.findUserByPhoneFlexible(identifier);
     }
 
     if (!user || !user.phone) {
