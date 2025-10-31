@@ -287,12 +287,36 @@ export async function getOrders(
   
   // Build query
   const query: any = {};
+  
   // Business rule: Only show SSLCommerz orders after successful payment
   // Show all non-SSLCommerz orders (e.g., COD) regardless of payment status
-  query.$or = [
-    { 'paymentInfo.method': { $ne: 'sslcommerz' } },
-    { 'paymentInfo.status': 'completed' }
-  ];
+  const paymentFilter = {
+    $or: [
+      { 'paymentInfo.method': { $ne: 'sslcommerz' } },
+      { 'paymentInfo.status': 'completed' }
+    ]
+  };
+  
+  // Build search filter if provided
+  const searchFilter = filters.search ? {
+    $or: [
+      { orderNumber: { $regex: filters.search, $options: 'i' } },
+      { 'customer.email': { $regex: filters.search, $options: 'i' } },
+      { 'customer.phone': { $regex: filters.search, $options: 'i' } }
+    ]
+  } : null;
+  
+  // Combine filters using $and to ensure both payment and search filters apply
+  const andConditions: any[] = [paymentFilter];
+  if (searchFilter) {
+    andConditions.push(searchFilter);
+  }
+  if (andConditions.length > 1) {
+    query.$and = andConditions;
+  } else {
+    Object.assign(query, paymentFilter);
+  }
+  
   if (filters.status) query.status = filters.status;
   if (filters.dateFrom || filters.dateTo) {
     query.createdAt = {};
@@ -303,13 +327,6 @@ export async function getOrders(
     query.total = {};
     if (filters.minAmount !== undefined) query.total.$gte = filters.minAmount;
     if (filters.maxAmount !== undefined) query.total.$lte = filters.maxAmount;
-  }
-  if (filters.search) {
-    query.$or = [
-      { orderNumber: { $regex: filters.search, $options: 'i' } },
-      { 'customer.email': { $regex: filters.search, $options: 'i' } },
-      { 'customer.phone': { $regex: filters.search, $options: 'i' } }
-    ];
   }
   
   const [orders, total] = await Promise.all([
