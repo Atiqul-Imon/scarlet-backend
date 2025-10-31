@@ -12,6 +12,12 @@ router.post('/refresh', rateLimits.auth, controller.refreshToken);
 router.post('/forgot-password', rateLimits.passwordReset, controller.forgotPassword);
 router.post('/reset-password', rateLimits.passwordReset, controller.resetPassword);
 
+// Password reset with OTP flow
+import * as passwordResetController from './password-reset.controller.js';
+router.post('/password-reset/send-otp', rateLimits.passwordReset, passwordResetController.sendPasswordResetOTP);
+router.post('/password-reset/verify-otp', rateLimits.passwordReset, passwordResetController.verifyPasswordResetOTP);
+router.post('/password-reset/set-password', rateLimits.passwordReset, passwordResetController.setNewPassword);
+
 // Protected routes (authentication required)
 router.post('/logout', requireAuth, controller.logout);
 router.post('/change-password', requireAuth, rateLimits.auth, controller.changePassword);
