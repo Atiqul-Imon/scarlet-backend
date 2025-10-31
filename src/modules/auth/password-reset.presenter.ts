@@ -138,16 +138,30 @@ export async function sendPasswordResetOTP(
     }
 
     // Normalize user phone to ensure correct format for OTP
-    // user.phone might be stored as +8801XXXXXXXXX, 8801XXXXXXXXX, or 01XXXXXXXXX
+    // Database stores phones as +8801XXXXXXXXX (from normalizeIdentifier during registration)
+    // Guest checkout works because it uses phone directly from user input (01XXXXXXXXX)
+    // Password reset needs to convert database phone (+8801XXXXXXXXX) to 01XXXXXXXXX format
     let phoneForOTP = user.phone;
     
-    // Remove + if present for validation (OTP module will add it back)
+    // Convert to 01XXXXXXXXX format (same as guest checkout)
+    // This ensures validation passes and normalization works correctly
     if (phoneForOTP.startsWith('+8801')) {
-      phoneForOTP = phoneForOTP.substring(1); // Remove +, becomes 8801XXXXXXXXX
+      // +8801714918360 -> 01XXXXXXXXX
+      // Skip '+8801' (5 chars), keep the rest
+      phoneForOTP = '01' + phoneForOTP.substring(5); // +8801 -> skip, then 714918360 -> 01714918360
     } else if (phoneForOTP.startsWith('8801')) {
-      phoneForOTP = phoneForOTP; // Already in 8801XXXXXXXXX format
+      // 8801714918360 -> 01XXXXXXXXX
+      phoneForOTP = '01' + phoneForOTP.substring(4); // 8801 -> skip, then 714918360 -> 01714918360
     } else if (phoneForOTP.startsWith('01')) {
-      phoneForOTP = phoneForOTP; // Already in 01XXXXXXXXX format (will be normalized)
+      // Already in correct format
+      phoneForOTP = phoneForOTP;
+    } else {
+      // Unknown format, try to extract last 11 digits (01XXXXXXXXX)
+      const digits = phoneForOTP.replace(/\D/g, ''); // Remove all non-digits
+      if (digits.length >= 11) {
+        phoneForOTP = '01' + digits.slice(-9); // Last 9 digits after 01
+      }
+      // If still can't format, pass as-is and let validation handle it
     }
     
     logger.info({ 
