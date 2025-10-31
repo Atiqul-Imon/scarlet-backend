@@ -250,9 +250,16 @@ class SSLWirelessSMSService {
       isSingleSMS: isSingleSMS(message)
     }, 'Sending bilingual order confirmation SMS');
     
+    // Generate short CSMS ID (max 20 chars for SSLWireless)
+    // Format: ORD_<orderNumber_short>_<timestamp_last_6_digits>
+    // Example: ORD_123_543411 (14 chars)
+    const orderShort = orderNumber.replace(/[^A-Z0-9]/gi, '').slice(-6); // Last 6 alphanumeric chars
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits
+    const csmsId = `ORD_${orderShort}_${timestamp}`; // Max 18 chars
+    
     return this.sendSMS(phone, message, {
       masking: this.sid,
-      csmsId: `ORDER_${orderNumber}_${Date.now()}`
+      csmsId
     });
   }
 
@@ -279,9 +286,16 @@ class SSLWirelessSMSService {
       isSingleSMS: isSingleSMS(message)
     }, 'Sending bilingual order status SMS');
     
+    // Generate short CSMS ID (max 20 chars for SSLWireless)
+    // Format: STS_<orderNumber_short>_<timestamp_last_6_digits>
+    // Example: STS_123_543411 (14 chars)
+    const orderShort = orderNumber.replace(/[^A-Z0-9]/gi, '').slice(-6); // Last 6 alphanumeric chars
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits
+    const csmsId = `STS_${orderShort}_${timestamp}`; // Max 18 chars
+    
     return this.sendSMS(phone, message, {
       masking: this.sid,
-      csmsId: `STATUS_${orderNumber}_${Date.now()}`
+      csmsId
     });
   }
 
@@ -324,9 +338,16 @@ class SSLWirelessSMSService {
       isSingleSMS: isSingleSMS(message)
     }, 'Sending bilingual welcome SMS');
     
+    // Generate short CSMS ID (max 20 chars for SSLWireless)
+    // Format: WEL_<userType_short>_<timestamp_last_6_digits>
+    // Example: WEL_NEW_543411 (13 chars)
+    const userTypeShort = userType === 'newUser' ? 'NEW' : 'RET';
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits
+    const csmsId = `WEL_${userTypeShort}_${timestamp}`; // Max 16 chars
+    
     return this.sendSMS(phone, message, {
       masking: this.sid,
-      csmsId: `WELCOME_${userType}_${Date.now()}`
+      csmsId
     });
   }
 
@@ -353,9 +374,17 @@ class SSLWirelessSMSService {
       isSingleSMS: isSingleSMS(message)
     }, 'Sending bilingual promotional SMS');
     
+    // Generate short CSMS ID (max 20 chars for SSLWireless)
+    // Format: PRM_<promoType_short>_<timestamp_last_6_digits>
+    // Example: PRM_DISC_543411 (15 chars)
+    const promoTypeShort = promoType === 'discount' ? 'DISC' : 
+                           promoType === 'newProduct' ? 'NEWP' : 'SALE';
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits
+    const csmsId = `PRM_${promoTypeShort}_${timestamp}`; // Max 17 chars
+    
     return this.sendSMS(phone, message, {
       masking: this.sid,
-      csmsId: `PROMO_${promoType}_${Date.now()}`
+      csmsId
     });
   }
 
@@ -382,9 +411,17 @@ class SSLWirelessSMSService {
       isSingleSMS: isSingleSMS(message)
     }, 'Sending bilingual reminder SMS');
     
+    // Generate short CSMS ID (max 20 chars for SSLWireless)
+    // Format: REM_<reminderType_short>_<timestamp_last_6_digits>
+    // Example: REM_CART_543411 (14 chars)
+    const reminderTypeShort = reminderType === 'cartAbandonment' ? 'CART' :
+                              reminderType === 'wishlist' ? 'WISH' : 'REV';
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits
+    const csmsId = `REM_${reminderTypeShort}_${timestamp}`; // Max 17 chars
+    
     return this.sendSMS(phone, message, {
       masking: this.sid,
-      csmsId: `REMINDER_${reminderType}_${Date.now()}`
+      csmsId
     });
   }
 
@@ -429,7 +466,12 @@ class SSLWirelessSMSService {
    * Generate unique CSMS ID
    */
   private generateCSMSId(): string {
-    return `SCARLET_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // Generate short CSMS ID (max 20 chars for SSLWireless)
+    // Format: SCL_<timestamp_last_6>_<random_4>
+    // Example: SCL_543411_a3b2 (14 chars)
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits
+    const random = Math.random().toString(36).substring(2, 6); // 4 random chars
+    return `SCL_${timestamp}_${random}`; // Max 15 chars
   }
 
   /**
