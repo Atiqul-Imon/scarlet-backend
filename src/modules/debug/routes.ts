@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import https from 'https';
 import http from 'http';
+import { asyncHandler } from '../../core/http/asyncHandler.js';
+import { getDb } from '../../core/db/mongoClient.js';
+import { logger } from '../../core/logging/logger.js';
 
 const router = Router();
 
@@ -423,5 +426,124 @@ router.post('/test-password-reset-sms', async (req, res) => {
     });
   }
 });
+
+/**
+ * @route GET /api/debug/check-sslcommerz-ipn
+ * @desc Check SSLCommerz IPN status and recent orders
+ * @access Public (for debugging)
+ */
+router.get('/check-sslcommerz-ipn', asyncHandler(async (req, res) => {
+  try {
+    const db = await getDb();
+    
+    // Check IPN URL configuration
+    const ipnUrl = process.env.SSLCOMMERZ_IPN_URL || 'NOT SET';
+    
+    // Get recent SSLCommerz orders (last 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    
+    const recentOrders = await db.collection('orders')
+      .find({
+        'paymentInfo.method': 'sslcommerz',
+        createdAt: { $gte: sevenDaysAgo }
+      })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .toArray();
+    
+    // Check pending orders
+    const pendingOrders = await db.collection('orders')
+      .find({
+        'paymentInfo.method': 'sslcommerz',
+        'paymentInfo.status': { $ne: 'completed' },
+        createdAt: { $gte: sevenDaysAgo }
+      })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .toArray();
+    
+    // Check completed orders
+    const completedOrders = await db.collection('orders')
+      .find({
+        'paymentInfo.method': 'sslcommerz',
+        'paymentInfo.status': 'completed',
+        createdAt: { $gte: sevenDaysAgo }
+      })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .toArray();
+    
+    // Get statistics
+    const total = recentOrders.length;
+    const completed = completedOrders.length;
+    const pending = pendingOrders.length;
+    const successRate = total > 0 ? ((completed / total) * 100).toFixed(1) : '0';
+    
+    // Get recently updated orders (possible IPN activity)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const recentlyUpdated = await db.collection('orders')
+      .find({
+        'paymentInfo.method': 'sslcommerz',
+        updatedAt: { $gte: oneDayAgo }
+      })
+      .sort({ updatedAt: -1 })
+      .limit(10)
+      .toArray();
+    
+    res.json({
+      success: true,
+      data: {
+        configuration: {
+          ipnUrl,
+          expectedUrl: 'https://api.scarletunlimited.net/api/payments/webhook/sslcommerz',
+          isConfigured: ipnUrl !== 'NOT SET' && ipnUrl.includes('api.scarletunlimited.net')
+        },
+        statistics: {
+          totalOrders: total,
+          completedOrders: completed,
+          pendingOrders: pending,
+          successRate: `${successRate}%`,
+          recentlyUpdated: recentlyUpdated.length
+        },
+        recentOrders: recentOrders.map(order => ({
+          orderNumber: order.orderNumber,
+          status: order.status,
+          paymentStatus: order.paymentInfo?.status || 'unknown',
+          total: order.total,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
+          hasBankTransactionId: !!order.paymentInfo?.bankTransactionId
+        })),
+        pendingOrders: pendingOrders.map(order => ({
+          orderNumber: order.orderNumber,
+          status: order.status,
+          paymentStatus: order.paymentInfo?.status || 'unknown',
+          total: order.total,
+          createdAt: order.createdAt,
+          warning: 'This order suggests IPN might not be working'
+        })),
+        recentlyUpdated: recentlyUpdated.map(order => ({
+          orderNumber: order.orderNumber,
+          status: order.status,
+          paymentStatus: order.paymentInfo?.status || 'unknown',
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt
+        }))
+      },
+      recommendations: [
+        pending > 0 ? '⚠️ Found pending SSLCommerz orders - IPN may not be working' : '✅ No pending orders - IPN appears to be working',
+        parseFloat(successRate) < 80 ? '⚠️ Low success rate - check IPN configuration' : '✅ Success rate is good',
+        ipnUrl === 'NOT SET' ? '⚠️ IPN URL not configured in environment variables' : '✅ IPN URL is configured'
+      ]
+    });
+  } catch (error: any) {
+    logger.error({ error }, 'Failed to check SSLCommerz IPN status');
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check SSLCommerz IPN status',
+      error: error.message
+    });
+  }
+}));
 
 export { router };

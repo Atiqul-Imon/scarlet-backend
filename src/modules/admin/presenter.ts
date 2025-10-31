@@ -334,6 +334,9 @@ export async function updateOrderStatus(
       }
     }
 
+    // Store previous status for SMS sending logic
+    const previousStatus = order.status;
+
     // Update the order status with proper timestamp and payment status
     const success = await repo.updateOrderStatus(orderId, status);
     if (!success) {
@@ -343,6 +346,25 @@ export async function updateOrderStatus(
     // Update payment status to 'refunded' when order is refunded
     if (status === 'refunded') {
       await repo.updateOrderPaymentStatus(orderId, 'refunded');
+    }
+
+    // Send order confirmation SMS only when status changes from 'pending' to 'confirmed'
+    if (previousStatus === 'pending' && status === 'confirmed') {
+      try {
+        const { sendOrderSuccessSMS } = await import('../otp/presenter.js');
+        const phone = order.shippingAddress.phone;
+        const orderNumber = order.orderNumber;
+        
+        if (phone && orderNumber) {
+          await sendOrderSuccessSMS(phone, orderNumber);
+          logger.info(`Order confirmation SMS sent for order ${orderNumber} to ${phone}`);
+        } else {
+          logger.warn(`Cannot send SMS: missing phone (${phone}) or orderNumber (${orderNumber})`);
+        }
+      } catch (smsError) {
+        // Don't fail the status update if SMS fails
+        logger.error({ smsError, orderId, orderNumber: order.orderNumber }, 'Failed to send order confirmation SMS');
+      }
     }
     
     logger.info(`Order ${orderId} status updated to ${status}`);
