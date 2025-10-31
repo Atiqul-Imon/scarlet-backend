@@ -28,7 +28,7 @@ export interface ShippingAddress {
   // Legacy fields (keep for backward compatibility)
   city: string;
   area: string;
-  postalCode: string;
+  postalCode?: string; // Optional, only required for outside_dhaka
 }
 
 export interface PaymentInfo {

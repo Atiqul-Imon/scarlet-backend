@@ -64,10 +64,13 @@ const validateOrderData = (data: any): { valid: boolean; errors: Record<string, 
     errors.area = 'Area/Thana is required';
   }
 
-  if (!data.postalCode) {
-    errors.postalCode = 'Postal code is required';
-  } else if (!/^\d{4}$/.test(data.postalCode)) {
-    errors.postalCode = 'Postal code must be 4 digits';
+  // Postal code is only required for outside Dhaka
+  if (data.deliveryArea === 'outside_dhaka') {
+    if (!data.postalCode) {
+      errors.postalCode = 'Postal code is required for outside Dhaka delivery';
+    } else if (!/^\d{4}$/.test(data.postalCode)) {
+      errors.postalCode = 'Postal code must be 4 digits';
+    }
   }
 
   if (!data.paymentMethod) {
@@ -115,7 +118,7 @@ export async function create(req: any, res: any) {
       // Legacy fields (keep for backward compatibility)
       city: req.body.city.trim(),
       area: req.body.area.trim(),
-      postalCode: req.body.postalCode.trim(),
+      postalCode: req.body.postalCode?.trim() || '',
       paymentMethod: req.body.paymentMethod,
       paymentStatus: 'pending',
       notes: req.body.notes?.trim(),
@@ -201,7 +204,7 @@ export async function createGuestOrder(req: any, res: any) {
       // Legacy fields (keep for backward compatibility)
       city: req.body.city.trim(),
       area: req.body.area.trim(),
-      postalCode: req.body.postalCode.trim(),
+      postalCode: req.body.postalCode?.trim() || '',
       paymentMethod: req.body.paymentMethod,
       paymentStatus: 'pending',
       notes: req.body.notes?.trim(),
