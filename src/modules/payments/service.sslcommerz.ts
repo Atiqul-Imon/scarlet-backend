@@ -215,7 +215,26 @@ export async function handleIPN(ipnData: any): Promise<{ success: boolean; error
         await orderRepo.updateOrderStatus(order._id!.toString(), 'confirmed');
         
         // CRITICAL: Update payment status to completed (this makes the order visible in admin panel)
+        // Also store bank transaction ID for refunds
         await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'completed');
+        
+        // Store bank transaction ID in paymentInfo for refund processing
+        if (bankTransactionId) {
+          const { ObjectId } = await import('mongodb');
+          const { getDb } = await import('../../core/db/mongoClient.js');
+          const db = await getDb();
+          await db.collection('orders').updateOne(
+            { _id: new ObjectId(order._id!.toString()) },
+            { 
+              $set: { 
+                'paymentInfo.transactionId': bankTransactionId,
+                'paymentInfo.bankTransactionId': bankTransactionId,
+                updatedAt: new Date().toISOString()
+              } 
+            }
+          );
+          console.log(`✅ Stored bank transaction ID: ${bankTransactionId} for order: ${order.orderNumber}`);
+        }
         
         console.log(`✅ Order ${order.orderNumber} status updated: confirmed, payment: completed`);
       } catch (error: any) {
@@ -291,20 +310,122 @@ export async function handleIPN(ipnData: any): Promise<{ success: boolean; error
  * Process a refund through SSLCommerz
  */
 export async function processRefund(
-  transactionId: string, 
+  orderIdOrNumber: string, 
   amount: string, 
   reason?: string
 ): Promise<RefundResult> {
   try {
     const gateway = getSSLCommerzGateway();
+    const orderRepo = await import('../orders/repository.js');
     
-    console.log('Processing refund for transaction:', transactionId);
+    console.log('Processing refund for order:', orderIdOrNumber);
     console.log('Refund amount:', amount);
     console.log('Reason:', reason);
 
-    const result = await gateway.processRefund(transactionId, parseFloat(amount), reason || 'Customer request');
+    // Find order by order number or ID
+    let order = await orderRepo.getOrderByOrderNumber(orderIdOrNumber);
+    
+    // If not found by order number, try by ID
+    if (!order) {
+      try {
+        const { ObjectId } = await import('mongodb');
+        const { getDb } = await import('../../core/db/mongoClient.js');
+        const db = await getDb();
+        order = await db.collection('orders').findOne({ _id: new ObjectId(orderIdOrNumber) }) as any;
+      } catch (e) {
+        // Not a valid ObjectId
+      }
+    }
+    
+    if (!order) {
+      return {
+        status: 'failed',
+        message: 'Order not found'
+      };
+    }
+    
+    // Check if payment method is SSLCommerz
+    if (order.paymentInfo?.method !== 'sslcommerz') {
+      return {
+        status: 'failed',
+        message: 'Refund only supported for SSLCommerz payments'
+      };
+    }
+    
+    // Check if payment is completed
+    if (order.paymentInfo?.status !== 'completed') {
+      return {
+        status: 'failed',
+        message: 'Can only refund completed payments'
+      };
+    }
+    
+    // Get bank transaction ID from order
+    const bankTransactionId = order.paymentInfo?.bankTransactionId || order.paymentInfo?.transactionId;
+    
+    if (!bankTransactionId) {
+      // Try to get it from SSLCommerz API
+      console.log('⚠️ Bank transaction ID not found in order, querying SSLCommerz...');
+      const verification = await gateway.queryTransaction(order.orderNumber);
+      
+      if (verification.success && verification.data?.bank_tran_id) {
+        const fetchedBankTranId = verification.data.bank_tran_id;
+        console.log(`✅ Retrieved bank transaction ID from SSLCommerz: ${fetchedBankTranId}`);
+        
+        // Store it for future use
+        const { ObjectId } = await import('mongodb');
+        const { getDb } = await import('../../core/db/mongoClient.js');
+        const db = await getDb();
+        await db.collection('orders').updateOne(
+          { _id: new ObjectId(order._id!.toString()) },
+          { 
+            $set: { 
+              'paymentInfo.bankTransactionId': fetchedBankTranId,
+              updatedAt: new Date().toISOString()
+            } 
+          }
+        );
+        
+        // Use the fetched ID
+        const result = await gateway.processRefund(fetchedBankTranId, parseFloat(amount), reason || 'Customer request');
+        
+        if (result.success) {
+          // Update order status
+          await orderRepo.updateOrderStatus(order._id!.toString(), 'refunded');
+          await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'refunded');
+        }
+        
+        if (result.success) {
+          return {
+            status: 'success',
+            refundId: result.refundId,
+            amount,
+            message: 'Refund processed successfully'
+          };
+        } else {
+          return {
+            status: 'failed',
+            message: result.error || 'Refund processing failed'
+          };
+        }
+      } else {
+        return {
+          status: 'failed',
+          message: 'Bank transaction ID not found. Please contact SSLCommerz support or process refund manually from merchant panel.'
+        };
+      }
+    }
+
+    // Process refund with bank transaction ID
+    const result = await gateway.processRefund(bankTransactionId, parseFloat(amount), reason || 'Customer request');
     
     if (result.success) {
+      // Update order status to refunded
+      await orderRepo.updateOrderStatus(order._id!.toString(), 'refunded');
+      await orderRepo.updateOrderPaymentStatus(order._id!.toString(), 'refunded');
+      
+      console.log(`✅ Refund processed successfully for order: ${order.orderNumber}`);
+      
       return {
         status: 'success',
         refundId: result.refundId,

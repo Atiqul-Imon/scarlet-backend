@@ -28,6 +28,7 @@ export interface PaymentInfo {
   method: PaymentMethod;
   status: PaymentStatus;
   transactionId?: string;
+  bankTransactionId?: string; // SSLCommerz bank_tran_id for refunds
   paymentDate?: string;
 }
 

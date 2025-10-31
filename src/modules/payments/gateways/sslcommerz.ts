@@ -307,9 +307,10 @@ export class SSLCommerzGateway {
         format: 'json',
       };
 
+      // SSLCommerz refund API endpoint
       const response = await axios.post(
         `${this.baseUrl}/validator/api/merchantTransIDvalidationAPI.php`,
-        new URLSearchParams(params as any).toString(),
+        new URLSearchParams(params as any),
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
