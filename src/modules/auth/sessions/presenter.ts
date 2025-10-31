@@ -20,7 +20,7 @@ export async function createSession(
     const parsed = parseUserAgent(userAgent);
     
     // Get location (async, but we won't wait if it fails)
-    let locationData = { location: undefined, country: undefined, city: undefined };
+    let locationData: { location?: string; country?: string; city?: string } = {};
     try {
       locationData = await getLocationFromIp(ipAddress);
     } catch (error) {
