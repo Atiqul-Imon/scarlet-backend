@@ -2,7 +2,7 @@ import * as cartRepo from '../cart/repository.js';
 import * as catalogRepo from '../catalog/repository.js';
 import * as orderRepo from './repository.js';
 import * as analyticsPresenter from '../analytics/presenter.js';
-import { sendOrderSuccessSMS } from '../otp/presenter.js';
+// import { sendOrderSuccessSMS } from '../otp/presenter.js'; // Removed - SMS now sent only when admin confirms order
 import type { Order, OrderItem, ShippingAddress, PaymentMethod } from './model.js';
 import { AppError } from '../../core/errors/AppError.js';
 import { ObjectId } from 'mongodb';
@@ -221,12 +221,8 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
     console.error('Failed to track order creation:', error);
   }
 
-  // Send SMS notification
-  try {
-    await sendOrderSuccessSMS(orderData.phone, createdOrder.orderNumber);
-  } catch (error) {
-    console.error('Failed to send order SMS:', error);
-  }
+  // SMS notification removed - will be sent only when admin confirms the order
+  // Previously sent automatically on order creation, now sent only when status changes from 'pending' to 'confirmed'
 
   return createdOrder;
 }
@@ -382,12 +378,8 @@ export async function createFromGuestCart(cartItems: any[], orderData: CreateOrd
     console.error('Failed to track guest order creation:', error);
   }
 
-  // Send SMS notification
-  try {
-    await sendOrderSuccessSMS(orderData.phone, createdOrder.orderNumber);
-  } catch (error) {
-    console.error('Failed to send order SMS:', error);
-  }
+  // SMS notification removed - will be sent only when admin confirms the order
+  // Previously sent automatically on order creation, now sent only when status changes from 'pending' to 'confirmed'
 
   return createdOrder;
 }

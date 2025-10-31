@@ -52,6 +52,8 @@ export interface AdminOrderFilters {
   minAmount?: number;
   maxAmount?: number;
   search?: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
 }
 
 export interface SystemSettings {

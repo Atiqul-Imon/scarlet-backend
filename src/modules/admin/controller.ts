@@ -259,7 +259,9 @@ export const getOrders = asyncHandler(async (req: Request, res: Response) => {
     dateTo, 
     minAmount, 
     maxAmount, 
-    search, 
+    search,
+    paymentMethod,
+    paymentStatus,
     page = 1, 
     limit = 50 
   } = req.query;
@@ -270,7 +272,9 @@ export const getOrders = asyncHandler(async (req: Request, res: Response) => {
     dateTo: dateTo ? new Date(dateTo as string) : undefined,
     minAmount: minAmount ? Number(minAmount) : undefined,
     maxAmount: maxAmount ? Number(maxAmount) : undefined,
-    search: search as string
+    search: search as string,
+    paymentMethod: paymentMethod as string,
+    paymentStatus: paymentStatus as string
   };
   
   const result = await presenter.getOrders(filters, Number(page), Number(limit));
