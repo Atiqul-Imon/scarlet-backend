@@ -345,4 +345,83 @@ router.get('/check-sms-service', async (req, res) => {
   }
 });
 
+// Test endpoint to directly test password reset OTP SMS
+router.post('/test-password-reset-sms', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Phone number is required'
+      });
+    }
+    
+    const { smsService } = await import('../../core/services/smsService.js');
+    const { getSMSMessage } = await import('../../core/services/bilingualSMS.js');
+    
+    // Test the exact flow for password reset
+    const testOTP = '1234';
+    const isConfigured = smsService.isConfigured();
+    
+    if (!isConfigured) {
+      return res.json({
+        success: false,
+        error: 'SMS service not configured',
+        isConfigured: false
+      });
+    }
+    
+    // Test message generation
+    const message = getSMSMessage('otp', 'passwordReset', { otp: testOTP });
+    
+    // Test phone normalization
+    const normalizedPhone = smsService['normalizePhone'] ? 
+      smsService['normalizePhone'](phone) : 
+      phone.replace(/[\s\-\(\)]/g, '').replace(/^\+8801/, '8801').replace(/^8801/, '8801').replace(/^01/, '8801');
+    
+    // Try to send actual SMS
+    let smsResult = null;
+    let smsError = null;
+    
+    try {
+      smsResult = await smsService.sendOTP(phone, testOTP, 'passwordReset');
+    } catch (error: any) {
+      smsError = {
+        message: error.message,
+        name: error.name,
+        code: error.code,
+        stack: error.stack?.substring(0, 500)
+      };
+    }
+    
+    return res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      test: {
+        inputPhone: phone,
+        normalizedPhone,
+        testOTP,
+        message,
+        messageLength: message.length,
+        isConfigured,
+        smsServiceResult: smsResult,
+        smsError
+      },
+      conclusion: smsError ? 
+        `SMS sending FAILED: ${smsError.message}` :
+        smsResult ? 
+          `SMS sent successfully with log ID: ${smsResult}` :
+          'SMS service responded but no result'
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack?.substring(0, 500),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export { router };
