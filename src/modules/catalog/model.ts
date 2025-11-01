@@ -56,6 +56,7 @@ export interface Product {
   attributes?: Record<string, string | number | boolean>;
   tags?: string[];
   sku?: string;
+  sizes?: string[];
   weight?: number;
   dimensions?: {
     length: number;

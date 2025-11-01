@@ -112,7 +112,8 @@ export async function createFromCart(userId: string, orderData: CreateOrderReque
       quantity: cartItem.quantity,
       image: product.images[0] || '',
       sku: product.sku || '',
-      brand: product.brand || ''
+      brand: product.brand || '',
+      size: cartItem.selectedSize
     });
   }
 
@@ -272,7 +273,8 @@ export async function createFromGuestCart(cartItems: any[], orderData: CreateOrd
       quantity: cartItem.quantity,
       image: product.images[0] || '',
       sku: product.sku || '',
-      brand: product.brand || ''
+      brand: product.brand || '',
+      size: cartItem.selectedSize
     });
   }
 

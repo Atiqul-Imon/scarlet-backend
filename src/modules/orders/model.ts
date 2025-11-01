@@ -11,6 +11,7 @@ export interface OrderItem {
   quantity: number;
   brand?: string;
   sku?: string;
+  size?: string;
 }
 
 export interface ShippingAddress {
