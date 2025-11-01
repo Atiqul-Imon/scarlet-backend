@@ -189,6 +189,11 @@ export async function createProduct(productData: any): Promise<Product> {
   };
   
   await db.collection('products').insertOne(product);
+  
+  // Invalidate cache to ensure fresh data
+  const { catalogCache } = await import('../catalog/cache.js');
+  await catalogCache.invalidateProduct(product._id.toString(), product.slug);
+  
   return product as Product;
 }
 
@@ -236,6 +241,13 @@ export async function updateProduct(productId: string, productData: any): Promis
   
   if (result.modifiedCount > 0) {
     const updatedProduct = await db.collection('products').findOne({ _id: new ObjectId(productId) });
+    
+    // Invalidate cache to ensure fresh data
+    if (updatedProduct) {
+      const { catalogCache } = await import('../catalog/cache.js');
+      await catalogCache.invalidateProduct(productId, updatedProduct.slug);
+    }
+    
     return updatedProduct as unknown as Product;
   }
   
